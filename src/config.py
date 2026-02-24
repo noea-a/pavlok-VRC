@@ -46,7 +46,6 @@ PAVLOK_API_URL = "https://api.pavlok.com/api/v5/stimulus/send"
 USE_VIBRATION = False  # True: バイブレーション, False: Zap（電気刺激）
 MIN_STIMULUS_VALUE = 15  # 出力の最小値
 MAX_STIMULUS_VALUE = 70  # 出力の最大値
-LIMIT_PAVLOK_ZAP_VALUE = int(os.getenv("LIMIT_PAVLOK_ZAP_VALUE", str(MAX_STIMULUS_VALUE)))
 
 # ===== OSC送信設定（VRChatへのChatbox出力） =====
 OSC_SEND_IP = "127.0.0.1"           # VRChat OSC受信IP

@@ -1,6 +1,5 @@
 import logging
 import time
-import signal
 import threading
 from datetime import datetime
 from queue import Queue

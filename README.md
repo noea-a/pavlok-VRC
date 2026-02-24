@@ -73,7 +73,6 @@ cp .env.example .env
 
 ```
 PAVLOK_API_KEY=your_api_key_here
-LIMIT_PAVLOK_ZAP_VALUE=70
 ```
 
 ---

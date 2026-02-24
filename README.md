@@ -81,70 +81,26 @@ LIMIT_PAVLOK_ZAP_VALUE=70
 3. VRChat でアバターに PhysBone（ShockPB）を設定
 4. 他プレイヤーが PhysBone を掴む
    - **即座**: Grab開始時にバイブレーション
-   - **グラブ中**: Stretch値が高くなるとバイブレーション
-   - **終了時**: MIN_GRAB_DURATION (0.8秒) 以上掴んで離すと最終刺激が発動
+   - **グラブ中**: Stretch値が高くなると警告バイブレーション
+   - **終了時**: MIN_GRAB_DURATION (0.8秒) 以上掴んで離すとZapが発動
 
 ---
 
-## ロジック
+## 動作
 
-### 1. Grab開始時（即座）
-```
-IsGrabbed: false → true
-    ↓
-【バイブレーション発動】 (強度: 20)
-```
-
-### 2. グラブ中のStretch超過時
-```
-IsGrabbed: true かつ Stretch > VIBRATION_ON_STRETCH_THRESHOLD (0.7)
-    ↓
-【バイブレーション発動】 (ヒステリシス付き)
-    ↓
-Stretch < VIBRATION_ON_STRETCH_THRESHOLD - VIBRATION_HYSTERESIS_OFFSET
-    (0.7 - 0.15 = 0.55) に低下するまで再発動しない
-```
-
-### 3. Grab終了時（設定時間以上）
-```
-IsGrabbed: true [MIN_GRAB_DURATION秒 (0.8秒)] → false
-    ↓
-Stretch値を計算 → 最終刺激が発動 (Zap/Vibration)
-```
-
-### 強度計算（非線形 Piecewise-Linear）
-
-Stretch値を刺激強度に段階的に変換します（config.py で詳細なパラメータ調整可能）：
-
-- **Stretch < MIN_STRETCH_THRESHOLD (0.03)**: 強度 0（刺激なし）
-- **Stretch 0.03～MIN_STRETCH_PLATEAU (0.12)**: MIN_STIMULUS_VALUE (15) で固定（低側プラトー）
-- **Stretch 0.12～切り替え点**: 線形で上昇
-- **切り替え点～MAX_STRETCH_FOR_CALC (0.8)**: より急な勾配で上昇（加速）
-- **Stretch ≥ 0.8**: MAX_STIMULUS_VALUE (70) で固定（高側プラトー）
-
-| Stretch | 強度 | 説明 |
-|---------|------|------|
-| 0.0     | 15   | 最小値 |
-| 0.1     | 20   | 低側プラトー |
-| 0.3     | 28   | 線形領域 |
-| 0.5     | 42   | 線形領域 |
-| 0.6     | 48   | 切り替え点付近 |
-| 0.8     | 70   | 最大値（クランプ） |
+- **Grab開始**: PhysBone を掴む → 即座にバイブレーション発動
+- **グラブ中**: Stretch値が高くなる → バイブレーション反応
+- **Grab終了**: 0.8秒以上掴んで離す → 最終的なZapが発動
 
 ---
 
-## 設定項目（config.py）
+## カスタマイズ
 
-### Grab・Stretch関連の刺激設定
+`src/config.py` で以下を調整できます：
 
-| 設定項目 | デフォルト | 説明 |
-|---------|----------|------|
-| `GRAB_START_VIBRATION_INTENSITY` | 20 | Grab開始時のバイブ強度（0～100） |
-| `VIBRATION_ON_STRETCH_THRESHOLD` | 0.7 | Stretch超過の判定閾値（0～1） |
-| `VIBRATION_HYSTERESIS_OFFSET` | 0.15 | ヒステリシスオフセット（発動閾値からの差分） |
-| `MIN_GRAB_DURATION` | 0.8 | Grab終了時刺激の最小継続時間（秒） |
-| `MIN_STIMULUS_VALUE` | 15 | 出力刺激の最小値 |
-| `MAX_STIMULUS_VALUE` | 70 | 出力刺激の最大値 |
+- `USE_VIBRATION`: False（Zap）/ True（バイブレーション）
+- `MIN_STIMULUS_VALUE` / `MAX_STIMULUS_VALUE`: 出力強度の範囲
+- `MIN_GRAB_DURATION`: グラブ終了時にZapが発動するまでの最小時間
 
 ---
 

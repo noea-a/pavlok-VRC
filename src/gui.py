@@ -533,7 +533,7 @@ class PavlokGUI(tk.Tk):
             if self.grab_state:
                 self.grab_state.is_test_mode = False
 
-            print(f"✅ テスト完了: max_stretch={max_stretch:.1f}, duration={duration:.1f}s")
+            print(f"[Test Complete] max_stretch={max_stretch:.1f}, duration={duration:.1f}s")
 
         # バックグラウンドスレッドで実行
         thread = threading.Thread(target=sequence, daemon=True)

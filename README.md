@@ -134,7 +134,7 @@ LIMIT_PAVLOK_ZAP_VALUE=70
 3. インターネット接続を確認
 4. config.py の設定を確認：
    ```python
-   USE_VIBRATION = False  # テスト用に全てバイブレーションに置き換えるか
+   USE_VIBRATION = False  # 全てバイブレーションに置き換える（テスト用）
    MIN_STIMULUS_VALUE = 15   # 出力最小値
    MAX_STIMULUS_VALUE = 70   # 出力最大値
    ```

@@ -1,4 +1,3 @@
-"""後方互換エントリポイント - gui パッケージへの re-export"""
 from gui.app import PavlokGUI, QueueHandler
 
 __all__ = ["PavlokGUI", "QueueHandler"]

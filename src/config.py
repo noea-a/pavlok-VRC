@@ -39,8 +39,6 @@ VIBRATION_ON_STRETCH_INTENSITY = 80  # Stretch超過時のバイブ強度（0～
 VIBRATION_HYSTERESIS_OFFSET = 0.15  # 発動閾値からのオフセット（解除 = 閾値 - オフセット）
 VIBRATION_ON_STRETCH_THRESHOLD = 0.7  # Stretch値の上限閾値（0～1）
 
-
-
 # ===== Pavlok API設定 =====
 PAVLOK_API_URL = "https://api.pavlok.com/api/v5/stimulus/send"
 USE_VIBRATION = False  # True: バイブレーション, False: Zap（電気刺激）
@@ -52,11 +50,6 @@ OSC_SEND_IP = "127.0.0.1"           # VRChat OSC受信IP
 OSC_SEND_PORT = 9000                # VRChat OSC受信ポート（標準）
 OSC_CHATBOX_PARAM = "/chatbox/input"  # Chatboxパラメータ
 OSC_SEND_INTERVAL = 1.5  # Chatbox送信間隔（秒）
-
-
 SEND_REALTIME_CHATBOX = True  # リアルタイム Chatbox 送信（True=有効, False=最終送信のみ）
-
-
-
 if not PAVLOK_API_KEY:
     raise ValueError("PAVLOK_API_KEY is not set in .env file")

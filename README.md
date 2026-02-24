@@ -12,19 +12,13 @@ pavlok_VRC/
 │   ├── main.py                    # メインロジック（常駐実行）
 │   ├── config.py                  # 設定管理
 │   ├── osc_listener.py            # OSC受信モジュール
-│   └── pavlok_controller.py       # Pavlok API制御
+│   ├── pavlok_controller.py       # Pavlok API制御
+│   ├── gui.py                     # Tkinter GUI ダッシュボード
+│   └── zap_recorder.py            # Zap 実行記録・統計
 │
-├── tools/                         # ツール・ユーティリティ
+├── docs/                          # ドキュメント・ツール
 │   ├── generate_intensity_graph.py # Zap強度グラフ生成
-│   ├── graphs/                    # グラフ出力
-│   │   └── zap_intensity_curve.png
-│   └── test/                      # テストスクリプト
-│       ├── test_nonlinear_intensity.py
-│       └── test_normalized_intensity.py
-│
-├── tests/                         # その他テスト
-│   ├── test_integration.py
-│   └── test_pavlok.py
+│   └── graphs/                    # グラフ出力
 │
 ├── requirements.txt               # 依存ライブラリ
 ├── .gitignore                     # Git除外設定
@@ -61,17 +55,6 @@ venv\Scripts\activate
 python src/main.py
 ```
 
-### 3. グラフ生成・テスト実行
-
-```bash
-# Zap強度計算グラフを生成
-python tools/generate_intensity_graph.py
-# 出力: tools/graphs/zap_intensity_curve.png
-
-# 強度計算テスト
-python tools/test/test_nonlinear_intensity.py
-```
-
 ---
 
 ## 設定（.env）
@@ -99,7 +82,7 @@ LIMIT_PAVLOK_ZAP_VALUE=70
 4. 他プレイヤーが PhysBone を掴む
    - **即座**: Grab開始時にバイブレーション
    - **グラブ中**: Stretch値が高くなるとバイブレーション
-   - **終了時**: 3秒以上掴んで離すと最終刺激が発動
+   - **終了時**: MIN_GRAB_DURATION (0.8秒) 以上掴んで離すと最終刺激が発動
 
 ---
 
@@ -173,21 +156,6 @@ Stretch値を刺激強度に段階的に変換します（config.py で詳細な
 
 ---
 
-## テスト検証
-
-- **OSC リスナー**: ポート 9001 で VRChat パラメータ受信
-- **API 制御**: Pavlok API 経由でバイブレーション/ザップ送信
-- **強度計算**: 非線形正規化計算（テスト済み）
-
-```
-実行例:
-[API] VRChat Pavlok Connector Starting
-OSC listener started on port 9001
-Listening for OSC messages...
-```
-
----
-
 ## トラブルシューティング
 
 ### OSC メッセージが受信されない
@@ -220,4 +188,4 @@ Listening for OSC messages...
   - `python-osc`: OSC 受信（9001ポート）
   - `requests`: Pavlok API 通信
   - `python-dotenv`: 環境変数管理
-  - `matplotlib`: グラフ生成（tools用）
+  - `matplotlib`: グラフ生成（docs/generate_intensity_graph.py）

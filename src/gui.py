@@ -475,7 +475,7 @@ class PavlokGUI(tk.Tk):
         if self.grab_state:
             self.grab_state.is_test_mode = True
             self.grab_state.on_grabbed_change(True)
-        print("🧪 テスト送信: Grab開始")
+        print("[Test Send] Grab Start")
 
     def test_grab_end(self):
         """テスト: Grab 終了を送信"""
@@ -491,7 +491,7 @@ class PavlokGUI(tk.Tk):
         self.test_stretch_var.set(0.0)
         self.test_stretch_label.config(text="0.000")
 
-        print(f"🧪 テスト送信: Grab終了 (最終Stretch: {stretch:.3f})")
+        print(f"[Test Send] Grab End (Final Stretch: {stretch:.3f})")
 
     def on_test_stretch_change(self, value):
         """テスト: Stretch 値を変更"""

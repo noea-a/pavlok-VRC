@@ -47,6 +47,10 @@ pip install -r requirements.txt
 
 ### 2. 起動方法
 
+**Windows（簡単）:**
+- `pavlok_vrc.cmd` をダブルクリック
+
+**コマンドラインから:**
 ```bash
 # 仮想環境有効化
 venv\Scripts\activate
@@ -130,7 +134,7 @@ LIMIT_PAVLOK_ZAP_VALUE=70
 3. インターネット接続を確認
 4. config.py の設定を確認：
    ```python
-   USE_VIBRATION = False  # False: Zap, True: Vibration
+   USE_VIBRATION = False  # テスト用に全てバイブレーションに置き換えるか
    MIN_STIMULUS_VALUE = 15   # 出力最小値
    MAX_STIMULUS_VALUE = 70   # 出力最大値
    ```

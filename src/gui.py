@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import threading
 import logging
 from queue import Queue, Empty
 from datetime import datetime

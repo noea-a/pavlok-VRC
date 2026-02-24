@@ -91,27 +91,30 @@ PAVLOK_API_KEY=your_api_key_here
 
 ## 動作
 
-- **Grab開始**: PhysBone を掴む → 即座にバイブレーション発動
-- **グラブ中**: Stretch値が高くなる → バイブレーション反応
+- **Grab開始**: PhysBone を掴む → 即座にバイブレーション
+- **グラブ中**: Stretch値が高い → 警告用バイブレーション
 - **Grab終了**: 0.8秒以上掴んで離す → 最終的なZapが発動
 
 ---
 
-## カスタマイズ
+## カスタマイズ（Config）
 
-`src/config.py` で以下を調整できます：
+`src/config.py` で調整できる主な項目：
 
-- `USE_VIBRATION`: False（Zap）/ True（バイブレーション）
-- `MIN_STIMULUS_VALUE` / `MAX_STIMULUS_VALUE`: 出力強度の範囲
-- `MIN_GRAB_DURATION`: グラブ終了時にZapが発動するまでの最小時間
+| 設定 | 内容 |
+|------|------|
+| `MIN_STIMULUS_VALUE` | 出力強度の最小値 |
+| `MAX_STIMULUS_VALUE` | 出力強度の最大値 |
+| `MIN_GRAB_DURATION` | Zap発動に必要なグラブの最小時間（秒） |
+| `VIBRATION_ON_STRETCH_THRESHOLD` | 警告バイブが発動するStretch値 |
+| `VIBRATION_HYSTERESIS_OFFSET` | ヒステリシス幅（連続発動防止） |
 
----
+強度カーブは以下で確認できます：
 
-## 制御方式
-
-- **Pavlok API**: スマートフォン中継（クラウド API）
-- **必要**: Pavlok と接続されたスマートフォン
-- **安定性**: 信頼性高い
+```bash
+python tools/generate_intensity_graph.py
+# → tools/graphs/zap_intensity_curve.png に出力
+```
 
 ---
 
@@ -121,7 +124,7 @@ PAVLOK_API_KEY=your_api_key_here
 
 1. VRChat で OSC 受信を有効化確認
 2. コンソールで「OSC listener started」が表示されているか確認
-3. ポート 9001 がリッスンされているか確認：
+3. ポート 9001 で受信されているか確認：
    ```bash
    netstat -an | findstr 9001
    ```
@@ -133,7 +136,7 @@ PAVLOK_API_KEY=your_api_key_here
 3. インターネット接続を確認
 4. config.py の設定を確認：
    ```python
-   USE_VIBRATION = False  # 全てバイブレーションに置き換える（テスト用）
+   USE_VIBRATION = False  # 全てバイブレーションに置き換えるか（テスト用）
    MIN_STIMULUS_VALUE = 15   # 出力最小値
    MAX_STIMULUS_VALUE = 70   # 出力最大値
    ```
@@ -147,4 +150,4 @@ PAVLOK_API_KEY=your_api_key_here
   - `python-osc`: OSC 受信（9001ポート）
   - `requests`: Pavlok API 通信
   - `python-dotenv`: 環境変数管理
-  - `matplotlib`: グラフ生成（docs/generate_intensity_graph.py）
+  - `matplotlib`: グラフ生成（tools/generate_intensity_graph.py）

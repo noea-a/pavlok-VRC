@@ -41,7 +41,6 @@ Thumbs.db
 
 # Project specific
 *.log
-tools/graphs/
 
 # Claude Code local settings
 .claude/

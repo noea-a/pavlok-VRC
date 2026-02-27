@@ -40,10 +40,10 @@ VIBRATION_HYSTERESIS_OFFSET = 0.15  # 発動閾値からのオフセット（解
 VIBRATION_ON_STRETCH_THRESHOLD = 0.7  # Stretch値の上限閾値（0～1）
 
 # ===== 制御モード =====
-CONTROL_MODE = "api"  # "api" or "ble"
+CONTROL_MODE = "ble"  # "api" or "ble"
 
 # ===== BLE設定（CONTROL_MODE = "ble" のとき使用） =====
-BLE_DEVICE_MAC = ""  # 例: "AA:BB:CC:DD:EE:FF"
+BLE_DEVICE_MAC = os.getenv("BLE_DEVICE_MAC", "")  # .env に設定（デバイス固有値）
 BLE_CONNECT_TIMEOUT = 10.0   # 接続タイムアウト（秒）
 BLE_RECONNECT_INTERVAL = 5.0  # 再接続間隔（秒）
 
@@ -67,3 +67,5 @@ OSC_SEND_INTERVAL = 1.5  # Chatbox送信間隔（秒）
 SEND_REALTIME_CHATBOX = True  # リアルタイム Chatbox 送信（True=有効, False=最終送信のみ）
 if CONTROL_MODE == "api" and not PAVLOK_API_KEY:
     raise ValueError("PAVLOK_API_KEY is not set in .env file")
+if CONTROL_MODE == "ble" and not BLE_DEVICE_MAC:
+    raise ValueError("BLE_DEVICE_MAC is not set in .env file")

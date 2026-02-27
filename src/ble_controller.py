@@ -16,12 +16,16 @@ _CONNECT_SETTLE_DELAY = 0.3
 # 書き込みリトライ回数
 _WRITE_RETRIES = 2
 
+# 接続監視ループの確認間隔（秒）
+_MONITOR_INTERVAL = 5.0
+
 
 class PavlokBLE:
-    """Pavlok 3 BLE直接制御クラス（接続維持方式）
+    """Pavlok 3 BLE直接制御クラス（接続監視 + 強制再接続方式）
 
-    disconnected_callback は WinRT で誤発火するため使用しない。
-    代わりに送信前に is_connected を確認し、切断時はその場で再接続する。
+    B: バックグラウンド監視ループで切断を即検知 → 自動再接続
+    C: write失敗時は is_connected を信頼せず強制 disconnect → reconnect
+    競合防止のため再接続処理は asyncio.Lock で排他制御する。
     """
 
     # check_api UUID（接続確認用）
@@ -35,11 +39,17 @@ class PavlokBLE:
         self._connect_timeout = connect_timeout
         self._reconnect_interval = reconnect_interval
         self._client: BleakClient | None = None
-        self._should_stop = False  # ble_disconnect() で True にして再接続ループを止める
+        self._should_stop = False
+        self._reconnect_lock = asyncio.Lock()
+        self._monitor_task: asyncio.Task | None = None
 
     @property
     def is_connected(self) -> bool:
         return self._client is not None and self._client.is_connected
+
+    # ------------------------------------------------------------------ #
+    # 接続・切断                                                           #
+    # ------------------------------------------------------------------ #
 
     async def connect(self) -> bool:
         """Pavlok 3 に BLE 接続する。成功時 True を返す。
@@ -47,7 +57,6 @@ class PavlokBLE:
         毎回新しい BleakClient インスタンスを生成する（再接続安定化）。
         disconnected_callback は使用しない（WinRT 誤発火回避）。
         """
-        # 古いクライアントが残っている場合は切断
         if self._client is not None:
             try:
                 await self._client.disconnect()
@@ -59,7 +68,6 @@ class PavlokBLE:
             self._client = BleakClient(self._mac, timeout=self._connect_timeout)
             await self._client.connect()
 
-            # デバイス側の準備が整うまで待機
             await asyncio.sleep(_CONNECT_SETTLE_DELAY)
 
             if not self._client.is_connected:
@@ -68,7 +76,6 @@ class PavlokBLE:
 
             logger.info(f"BLE connected: {self._mac}")
 
-            # check_api 書き込み（失敗しても続行）
             try:
                 await self._client.write_gatt_char(
                     self._C_API_UUID, bytes([87, 84]), response=True
@@ -83,50 +90,98 @@ class PavlokBLE:
             self._client = None
             return False
 
+    async def start_monitor(self) -> None:
+        """接続監視ループを開始する（B: バックグラウンドタスク）。"""
+        self._monitor_task = asyncio.ensure_future(self._monitor_loop())
+
     async def disconnect(self) -> None:
-        """BLE 接続を意図的に切断する。"""
+        """BLE 接続を意図的に切断し、監視ループを停止する。"""
         self._should_stop = True
+
+        if self._monitor_task is not None:
+            self._monitor_task.cancel()
+            try:
+                await self._monitor_task
+            except asyncio.CancelledError:
+                pass
+            self._monitor_task = None
+
         if self._client is not None:
             try:
                 await self._client.disconnect()
             except Exception as e:
                 logger.debug(f"BLE disconnect error (ignored): {e}")
             self._client = None
+
         logger.info("BLE disconnected")
 
+    # ------------------------------------------------------------------ #
+    # B: 接続監視ループ                                                    #
+    # ------------------------------------------------------------------ #
+
+    async def _monitor_loop(self) -> None:
+        """定期的に接続状態を確認し、切断を検知したら即再接続する（B）。"""
+        logger.debug("BLE monitor loop started")
+        while not self._should_stop:
+            await asyncio.sleep(_MONITOR_INTERVAL)
+            if self._should_stop:
+                break
+            if not self.is_connected:
+                logger.warning("BLE monitor: connection lost, reconnecting...")
+                async with self._reconnect_lock:
+                    # ロック取得後に再度確認（送信側が先に再接続済みの場合はスキップ）
+                    if not self.is_connected and not self._should_stop:
+                        await self._do_reconnect("monitor")
+        logger.debug("BLE monitor loop stopped")
+
+    # ------------------------------------------------------------------ #
+    # 送信                                                                 #
+    # ------------------------------------------------------------------ #
+
     async def send_zap(self, intensity: int) -> bool:
-        """Zap コマンドを送信する（切断時は自動再接続）。"""
+        """Zap コマンドを送信する。"""
         cmd = bytes([0x89, intensity])
         return await self._write_with_retry(self._zap_uuid, cmd, "Zap", intensity)
 
     async def send_vibration(self, intensity: int, count: int = 1, ton: int = 22, toff: int = 22) -> bool:
-        """Vibration コマンドを送信する（切断時は自動再接続）。"""
+        """Vibration コマンドを送信する。"""
         count = max(1, min(127, int(count)))
         cmd = bytes([0x80 | count, 2, intensity, ton, toff])
         return await self._write_with_retry(self._vibe_uuid, cmd, "Vibration", intensity)
 
-    async def _ensure_connected(self) -> bool:
-        """接続されていなければ再接続を試みる（最大3回）。"""
-        if self.is_connected:
-            return True
+    # ------------------------------------------------------------------ #
+    # 内部: 再接続・write                                                  #
+    # ------------------------------------------------------------------ #
 
-        logger.warning("BLE not connected. Attempting to reconnect...")
+    async def _do_reconnect(self, caller: str) -> bool:
+        """実際の再接続処理（ロック取得済みの状態で呼ぶこと）。"""
         for attempt in range(1, 4):
             if self._should_stop:
                 return False
-            logger.info(f"BLE reconnect attempt {attempt}/3...")
+            logger.info(f"BLE reconnect [{caller}] attempt {attempt}/3...")
             if await self.connect():
                 return True
             await asyncio.sleep(self._reconnect_interval)
-
-        logger.error("BLE reconnect failed")
+        logger.error(f"BLE reconnect [{caller}] failed")
         return False
 
-    async def _write_with_retry(self, uuid: str, cmd: bytes, label: str, intensity: int) -> bool:
-        """接続確認 → GATT write（失敗時リトライ）。
+    async def _ensure_connected(self) -> bool:
+        """接続されていなければロックを取得して再接続する。"""
+        if self.is_connected:
+            return True
 
-        00001001/00001002 は write-without-response プロパティを持たないため
-        response=True を使用する。
+        logger.warning("BLE not connected, acquiring lock for reconnect...")
+        async with self._reconnect_lock:
+            # ロック取得後に再確認（監視ループが先に回復済みの可能性）
+            if self.is_connected:
+                logger.info("BLE already reconnected by monitor, skipping")
+                return True
+            return await self._do_reconnect("ensure")
+
+    async def _write_with_retry(self, uuid: str, cmd: bytes, label: str, intensity: int) -> bool:
+        """接続確認 → GATT write。失敗時は強制再接続してリトライ（C）。
+
+        write失敗時は is_connected を信頼せず、必ず強制 disconnect → reconnect する。
         """
         if not await self._ensure_connected():
             return False
@@ -139,9 +194,10 @@ class PavlokBLE:
             except Exception as e:
                 logger.warning(f"BLE {label} write failed (attempt {attempt}/{_WRITE_RETRIES}): {e}")
                 if attempt < _WRITE_RETRIES:
-                    # 書き込み失敗時は再接続してからリトライ
-                    await asyncio.sleep(0.3)
-                    await self._ensure_connected()
+                    # C: is_connected を信頼せず強制再接続
+                    logger.info("BLE forcing reconnect after write failure...")
+                    async with self._reconnect_lock:
+                        await self._do_reconnect("write-retry")
 
         logger.error(f"BLE {label} write failed after {_WRITE_RETRIES} attempts")
         return False
@@ -156,7 +212,7 @@ def _run_ble_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 def ble_connect() -> bool:
-    """BLE 専用スレッドを起動し、Pavlok 3 に接続する。"""
+    """BLE 専用スレッドを起動し、Pavlok 3 に接続・監視ループを開始する。"""
     global _ble_loop, _ble_thread, _ble_instance
 
     from config import (
@@ -180,12 +236,19 @@ def ble_connect() -> bool:
         reconnect_interval=BLE_RECONNECT_INTERVAL,
     )
 
+    # 接続
     future = asyncio.run_coroutine_threadsafe(_ble_instance.connect(), _ble_loop)
     try:
-        return future.result(timeout=BLE_CONNECT_TIMEOUT + 3)
+        ok = future.result(timeout=BLE_CONNECT_TIMEOUT + 3)
     except Exception as e:
         logger.error(f"ble_connect timeout/error: {e}")
         return False
+
+    if ok:
+        # 接続成功後に監視ループを開始（B）
+        asyncio.run_coroutine_threadsafe(_ble_instance.start_monitor(), _ble_loop)
+
+    return ok
 
 
 def ble_disconnect() -> None:

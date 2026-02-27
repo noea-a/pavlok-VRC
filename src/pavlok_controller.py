@@ -5,7 +5,8 @@ from config import (
     MIN_STRETCH_THRESHOLD, MIN_STRETCH_PLATEAU, USE_VIBRATION,
     MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
     MIN_STRETCH_FOR_CALC, MAX_STRETCH_FOR_CALC,
-    NONLINEAR_SWITCH_POSITION_PERCENT, INTENSITY_AT_SWITCH_PERCENT
+    NONLINEAR_SWITCH_POSITION_PERCENT, INTENSITY_AT_SWITCH_PERCENT,
+    CONTROL_MODE
 )
 
 logger = logging.getLogger(__name__)
@@ -79,25 +80,9 @@ def calculate_zap_intensity(stretch_value: float) -> int:
     return int(intensity)
 
 
-def send_vibration(intensity: int) -> bool:
-    """
-    Pavlok APIに バイブレーション リクエストを送信（常にバイブレーション）
-
-    Args:
-        intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
-
-    Returns:
-        成功した場合True、失敗した場合False
-    """
+def _send_api_vibration(intensity: int) -> bool:
+    """API経由でバイブレーションを送信する内部関数。"""
     stimulus_type = "vibe"
-
-    if intensity < MIN_STIMULUS_VALUE:
-        logger.warning(f"Intensity too low ({intensity}), skipping {stimulus_type}")
-        return False
-
-    if intensity > MAX_STIMULUS_VALUE:
-        logger.warning(f"Intensity capped from {intensity} to {MAX_STIMULUS_VALUE}")
-        intensity = MAX_STIMULUS_VALUE
 
     payload = {
         "stimulus": {
@@ -105,51 +90,27 @@ def send_vibration(intensity: int) -> bool:
             "stimulusValue": intensity
         }
     }
-
     headers = {
         "Authorization": f"Bearer {PAVLOK_API_KEY}",
         "Content-Type": "application/json"
     }
 
     try:
-        response = requests.post(
-            PAVLOK_API_URL,
-            json=payload,
-            headers=headers,
-            timeout=5
-        )
-
+        response = requests.post(PAVLOK_API_URL, json=payload, headers=headers, timeout=5)
         if response.status_code == 200:
             logger.info(f"Vibration sent successfully! Intensity: {intensity}")
             return True
         else:
             logger.error(f"Pavlok API error: {response.status_code} - {response.text}")
             return False
-
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to send {stimulus_type}: {e}")
         return False
 
 
-def send_zap(intensity: int) -> bool:
-    """
-    Pavlok APIに刺激リクエストを送信（Zapまたはバイブレーション）
-
-    Args:
-        intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
-
-    Returns:
-        成功した場合True、失敗した場合False
-    """
+def _send_api_zap(intensity: int) -> bool:
+    """API経由でZap（またはVibe）を送信する内部関数。"""
     stimulus_type = "vibe" if USE_VIBRATION else "zap"
-
-    if intensity < MIN_STIMULUS_VALUE:
-        logger.warning(f"Intensity too low ({intensity}), skipping {stimulus_type}")
-        return False
-
-    if intensity > MAX_STIMULUS_VALUE:
-        logger.warning(f"Intensity capped from {intensity} to {MAX_STIMULUS_VALUE}")
-        intensity = MAX_STIMULUS_VALUE
 
     payload = {
         "stimulus": {
@@ -157,27 +118,70 @@ def send_zap(intensity: int) -> bool:
             "stimulusValue": intensity
         }
     }
-
     headers = {
         "Authorization": f"Bearer {PAVLOK_API_KEY}",
         "Content-Type": "application/json"
     }
 
     try:
-        response = requests.post(
-            PAVLOK_API_URL,
-            json=payload,
-            headers=headers,
-            timeout=5
-        )
-
+        response = requests.post(PAVLOK_API_URL, json=payload, headers=headers, timeout=5)
         if response.status_code == 200:
             logger.info(f"{stimulus_type.capitalize()} sent successfully! Intensity: {intensity}")
             return True
         else:
             logger.error(f"Pavlok API error: {response.status_code} - {response.text}")
             return False
-
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to send {stimulus_type}: {e}")
         return False
+
+
+def send_vibration(intensity: int) -> bool:
+    """
+    バイブレーションを送信する（API / BLE を CONTROL_MODE で切り替え）
+
+    Args:
+        intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
+
+    Returns:
+        成功した場合True、失敗した場合False
+    """
+    if intensity < MIN_STIMULUS_VALUE:
+        logger.warning(f"Intensity too low ({intensity}), skipping vibration")
+        return False
+    if intensity > MAX_STIMULUS_VALUE:
+        logger.warning(f"Intensity capped from {intensity} to {MAX_STIMULUS_VALUE}")
+        intensity = MAX_STIMULUS_VALUE
+
+    if CONTROL_MODE == "ble":
+        from ble_controller import ble_send_vibration
+        return ble_send_vibration(intensity)
+    else:
+        return _send_api_vibration(intensity)
+
+
+def send_zap(intensity: int) -> bool:
+    """
+    Zapを送信する（API / BLE を CONTROL_MODE で切り替え、USE_VIBRATION も尊重）
+
+    Args:
+        intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
+
+    Returns:
+        成功した場合True、失敗した場合False
+    """
+    if intensity < MIN_STIMULUS_VALUE:
+        logger.warning(f"Intensity too low ({intensity}), skipping zap")
+        return False
+    if intensity > MAX_STIMULUS_VALUE:
+        logger.warning(f"Intensity capped from {intensity} to {MAX_STIMULUS_VALUE}")
+        intensity = MAX_STIMULUS_VALUE
+
+    if CONTROL_MODE == "ble":
+        from ble_controller import ble_send_zap, ble_send_vibration
+        if USE_VIBRATION:
+            return ble_send_vibration(intensity)
+        else:
+            return ble_send_zap(intensity)
+    else:
+        return _send_api_zap(intensity)

@@ -105,7 +105,7 @@ class PavlokGUI(tk.Tk):
             self.after(1000, self.poll_data)
 
     def show_about(self):
-        messagebox.showinfo("バージョン情報", "VRChat Pavlok Connector\nGUI Dashboard v1.1")
+        messagebox.showinfo("バージョン情報", "VRChat Pavlok Connector\nGUI Dashboard v1.2")
 
     def on_close(self):
         self.is_running = False

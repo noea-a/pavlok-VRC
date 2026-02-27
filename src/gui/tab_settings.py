@@ -24,9 +24,14 @@ class SettingsTab(ttk.Frame):
             ("MIN_STRETCH_THRESHOLD", "Stretchの最小閾値", "float", 0.03, 0.0, 1.0),
             ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（バイブ）", "float", 0.7, 0.0, 1.0),
             ("VIBRATION_HYSTERESIS_OFFSET", "ヒステリシス幅（オフセット）", "float", 0.15, 0.0, 1.0),
-            ("GRAB_START_VIBRATION_INTENSITY", "グラブ開始強度", "int", 20, 0, 100),
-            ("VIBRATION_TON", "バイブ ON 時間", "int", 22, 0, 255),
-            ("VIBRATION_TOFF", "バイブ OFF 時間（反復間隔）", "int", 22, 0, 255),
+            ("GRAB_START_VIBRATION_INTENSITY", "グラブ開始 強度", "int", 20, 0, 100),
+            ("GRAB_START_VIBRATION_COUNT", "グラブ開始 反復回数", "int", 1, 1, 127),
+            ("GRAB_START_VIBRATION_TON", "グラブ開始 ON時間", "int", 22, 0, 255),
+            ("GRAB_START_VIBRATION_TOFF", "グラブ開始 OFF時間", "int", 22, 0, 255),
+            ("VIBRATION_ON_STRETCH_INTENSITY", "警告バイブ 強度", "int", 80, 0, 100),
+            ("VIBRATION_ON_STRETCH_COUNT", "警告バイブ 反復回数", "int", 1, 1, 127),
+            ("VIBRATION_ON_STRETCH_TON", "警告バイブ ON時間", "int", 22, 0, 255),
+            ("VIBRATION_ON_STRETCH_TOFF", "警告バイブ OFF時間", "int", 22, 0, 255),
             ("OSC_SEND_INTERVAL", "OSC送信間隔（秒）", "float", 1.5, 0.0, 10.0),
         ]
 

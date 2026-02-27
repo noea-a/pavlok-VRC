@@ -136,12 +136,15 @@ def _send_api_zap(intensity: int) -> bool:
         return False
 
 
-def send_vibration(intensity: int) -> bool:
+def send_vibration(intensity: int, count: int = 1, ton: int = 22, toff: int = 22) -> bool:
     """
     バイブレーションを送信する（API / BLE を CONTROL_MODE で切り替え）
 
     Args:
         intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
+        count: 反復回数（BLE のみ有効、1～127）
+        ton: ON 時間（BLE のみ有効、0～255）
+        toff: OFF 時間（BLE のみ有効、0～255）
 
     Returns:
         成功した場合True、失敗した場合False
@@ -155,8 +158,7 @@ def send_vibration(intensity: int) -> bool:
 
     if CONTROL_MODE == "ble":
         from ble_controller import ble_send_vibration
-        from config import VIBRATION_TON, VIBRATION_TOFF
-        return ble_send_vibration(intensity, VIBRATION_TON, VIBRATION_TOFF)
+        return ble_send_vibration(intensity, count, ton, toff)
     else:
         return _send_api_vibration(intensity)
 

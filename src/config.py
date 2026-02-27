@@ -35,7 +35,13 @@ INTENSITY_AT_SWITCH_PERCENT = 20  # その地点での強度（MIN_STIMULUS_VALU
 
 # ===== Grab・Stretch関連の刺激設定 =====
 GRAB_START_VIBRATION_INTENSITY = 20  # Grab開始時のバイブ強度（0～100）
+GRAB_START_VIBRATION_COUNT = 1       # Grab開始バイブ 反復回数（1～127）
+GRAB_START_VIBRATION_TON = 22        # Grab開始バイブ ON 時間（0～255）
+GRAB_START_VIBRATION_TOFF = 22       # Grab開始バイブ OFF 時間（0～255）
 VIBRATION_ON_STRETCH_INTENSITY = 80  # Stretch超過時のバイブ強度（0～100）
+VIBRATION_ON_STRETCH_COUNT = 1       # Stretch超過バイブ 反復回数（1～127）
+VIBRATION_ON_STRETCH_TON = 22        # Stretch超過バイブ ON 時間（0～255）
+VIBRATION_ON_STRETCH_TOFF = 22       # Stretch超過バイブ OFF 時間（0～255）
 VIBRATION_HYSTERESIS_OFFSET = 0.15  # 発動閾値からのオフセット（解除 = 閾値 - オフセット）
 VIBRATION_ON_STRETCH_THRESHOLD = 0.7  # Stretch値の上限閾値（0～1）
 
@@ -46,8 +52,6 @@ CONTROL_MODE = "ble"  # "api" or "ble"
 BLE_DEVICE_MAC = os.getenv("BLE_DEVICE_MAC", "")  # .env に設定（デバイス固有値）
 BLE_CONNECT_TIMEOUT = 10.0   # 接続タイムアウト（秒）
 BLE_RECONNECT_INTERVAL = 5.0  # 再接続間隔（秒）
-VIBRATION_TON = 22   # バイブ ON 時間（0～255）
-VIBRATION_TOFF = 22  # バイブ OFF 時間（0～255、反復間隔）
 
 # BLE UUID（Pavlok 3 確定値）
 BLE_SERVICE_UUID = "156e5000-a300-4fea-897b-86f698d74461"

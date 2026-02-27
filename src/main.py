@@ -7,7 +7,10 @@ from osc_listener import OSCListener
 from zap_recorder import ZapRecorder
 from config import (
     MIN_GRAB_DURATION, USE_VIBRATION,
-    GRAB_START_VIBRATION_INTENSITY, VIBRATION_ON_STRETCH_INTENSITY,
+    GRAB_START_VIBRATION_INTENSITY, GRAB_START_VIBRATION_COUNT,
+    GRAB_START_VIBRATION_TON, GRAB_START_VIBRATION_TOFF,
+    VIBRATION_ON_STRETCH_INTENSITY, VIBRATION_ON_STRETCH_COUNT,
+    VIBRATION_ON_STRETCH_TON, VIBRATION_ON_STRETCH_TOFF,
     VIBRATION_ON_STRETCH_THRESHOLD, VIBRATION_HYSTERESIS_OFFSET,
     OSC_SEND_INTERVAL, SEND_REALTIME_CHATBOX,
     MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
@@ -97,7 +100,7 @@ class GrabState:
                     self.stretch_above_threshold = True
                     intensity = calculate_intensity(value)
                     logger.info(f"{logger_prefix} [STRETCH THRESHOLD EXCEEDED (VIBRATION)] Value: {value:.3f}, Intensity: {intensity}")
-                    stimulus_controller.send_vibration(intensity)
+                    stimulus_controller.send_vibration(intensity, VIBRATION_ON_STRETCH_COUNT, VIBRATION_ON_STRETCH_TON, VIBRATION_ON_STRETCH_TOFF)
             elif value < VIBRATION_ON_STRETCH_THRESHOLD - VIBRATION_HYSTERESIS_OFFSET:
                 if self.stretch_above_threshold:  # 既に超過していた状態
                     self.stretch_above_threshold = False
@@ -117,7 +120,7 @@ class GrabState:
 
             # Grab開始時のバイブレーション（常にバイブ）
             logger.info(f"{logger_prefix} [GRAB START VIBRATION] Intensity: {GRAB_START_VIBRATION_INTENSITY}")
-            stimulus_controller.send_vibration(GRAB_START_VIBRATION_INTENSITY)
+            stimulus_controller.send_vibration(GRAB_START_VIBRATION_INTENSITY, GRAB_START_VIBRATION_COUNT, GRAB_START_VIBRATION_TON, GRAB_START_VIBRATION_TOFF)
 
         elif old_state and not value:
             # true → false: Grab終了

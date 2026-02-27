@@ -54,7 +54,7 @@ CONTROL_MODE = "ble"  # "api" or "ble"
 BLE_DEVICE_MAC = os.getenv("BLE_DEVICE_MAC", "")  # .env に設定（デバイス固有値）
 BLE_CONNECT_TIMEOUT = 30.0          # 接続タイムアウト（秒）
 BLE_RECONNECT_INTERVAL = 5.0        # 再接続間隔（秒）
-BLE_KEEPALIVE_INTERVAL = 4.0        # Keep-alive 送信間隔（秒）。Windows supervision timeout (~6秒) より短く設定
+BLE_KEEPALIVE_INTERVAL = 5.5        # Keep-alive 送信間隔（秒）。Windows supervision timeout (~6秒) より短く設定
 
 # BLE UUID（Pavlok 3 確定値）
 BLE_SERVICE_UUID = "156e5000-a300-4fea-897b-86f698d74461"

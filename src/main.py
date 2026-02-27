@@ -10,7 +10,8 @@ from config import (
     GRAB_START_VIBRATION_INTENSITY, VIBRATION_ON_STRETCH_INTENSITY,
     VIBRATION_ON_STRETCH_THRESHOLD, VIBRATION_HYSTERESIS_OFFSET,
     OSC_SEND_INTERVAL, SEND_REALTIME_CHATBOX,
-    MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE
+    MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
+    CONTROL_MODE
 )
 import pavlok_controller as stimulus_controller
 from pavlok_controller import calculate_zap_intensity as calculate_intensity
@@ -177,6 +178,14 @@ def main():
 
     logger.info(f"===== VRChat Pavlok Connector Starting ({logger_prefix}) =====")
 
+    # BLE モードの場合は起動時に接続
+    if CONTROL_MODE == "ble":
+        from ble_controller import ble_connect
+        logger.info("BLE モードで起動します。Pavlok 3 に接続中...")
+        if not ble_connect():
+            logger.error("BLE接続失敗。終了します。")
+            return
+
     # OSCリスナー作成
     listener = OSCListener()
 
@@ -206,6 +215,9 @@ def main():
             logger.info("Shutting down...")
             gui.is_running = False
             listener.stop()
+            if CONTROL_MODE == "ble":
+                from ble_controller import ble_disconnect
+                ble_disconnect()
             original_on_close()
 
         gui.on_close = on_close_wrapper
@@ -234,6 +246,9 @@ def main():
 
     finally:
         listener.stop()
+        if CONTROL_MODE == "ble":
+            from ble_controller import ble_disconnect
+            ble_disconnect()
         logger.info(f"===== VRChat Pavlok Connector Stopped =====")
 
 

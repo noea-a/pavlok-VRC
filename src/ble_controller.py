@@ -19,6 +19,9 @@ _WRITE_RETRIES = 2
 # 接続監視ループの確認間隔（秒）
 _MONITOR_INTERVAL = 5.0
 
+# Keep-alive ping コマンド（check_api への書き込み）
+_KEEPALIVE_CMD = bytes([87, 84])
+
 
 class PavlokBLE:
     """Pavlok 3 BLE直接制御クラス（接続監視 + 強制再接続方式）
@@ -32,16 +35,19 @@ class PavlokBLE:
     _C_API_UUID = "00001004-0000-1000-8000-00805f9b34fb"
 
     def __init__(self, mac: str, zap_uuid: str, vibe_uuid: str,
-                 connect_timeout: float, reconnect_interval: float):
+                 connect_timeout: float, reconnect_interval: float,
+                 keepalive_interval: float = 4.0):
         self._mac = mac
         self._zap_uuid = zap_uuid
         self._vibe_uuid = vibe_uuid
         self._connect_timeout = connect_timeout
         self._reconnect_interval = reconnect_interval
+        self._keepalive_interval = keepalive_interval
         self._client: BleakClient | None = None
         self._should_stop = False
         self._reconnect_lock = asyncio.Lock()
         self._monitor_task: asyncio.Task | None = None
+        self._keepalive_task: asyncio.Task | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -91,20 +97,23 @@ class PavlokBLE:
             return False
 
     async def start_monitor(self) -> None:
-        """接続監視ループを開始する（B: バックグラウンドタスク）。"""
+        """接続監視ループと Keep-alive ループを開始する。"""
         self._monitor_task = asyncio.ensure_future(self._monitor_loop())
+        self._keepalive_task = asyncio.ensure_future(self._keepalive_loop())
 
     async def disconnect(self) -> None:
-        """BLE 接続を意図的に切断し、監視ループを停止する。"""
+        """BLE 接続を意図的に切断し、監視・Keep-alive ループを停止する。"""
         self._should_stop = True
 
-        if self._monitor_task is not None:
-            self._monitor_task.cancel()
-            try:
-                await self._monitor_task
-            except asyncio.CancelledError:
-                pass
-            self._monitor_task = None
+        for task in (self._monitor_task, self._keepalive_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        self._monitor_task = None
+        self._keepalive_task = None
 
         if self._client is not None:
             try:
@@ -133,6 +142,33 @@ class PavlokBLE:
                     if not self.is_connected and not self._should_stop:
                         await self._do_reconnect("monitor")
         logger.debug("BLE monitor loop stopped")
+
+    # ------------------------------------------------------------------ #
+    # A: Keep-alive ループ                                                 #
+    # ------------------------------------------------------------------ #
+
+    async def _keepalive_loop(self) -> None:
+        """定期的に check_api へ ping を送り接続を維持する（A）。
+
+        supervision timeout（Windows: 約6秒）より短い間隔で送信する。
+        接続中のみ送信し、切断時はスキップ（監視ループに任せる）。
+        ping 失敗はログのみ（再接続は監視ループ・write リトライが担う）。
+        """
+        logger.debug("BLE keepalive loop started")
+        while not self._should_stop:
+            await asyncio.sleep(self._keepalive_interval)
+            if self._should_stop:
+                break
+            if not self.is_connected:
+                continue
+            try:
+                await self._client.write_gatt_char(
+                    self._C_API_UUID, _KEEPALIVE_CMD, response=True
+                )
+                logger.debug("BLE keepalive ping sent")
+            except Exception as e:
+                logger.debug(f"BLE keepalive ping failed (ignored): {e}")
+        logger.debug("BLE keepalive loop stopped")
 
     # ------------------------------------------------------------------ #
     # 送信                                                                 #
@@ -217,7 +253,7 @@ def ble_connect() -> bool:
 
     from config import (
         BLE_DEVICE_MAC, BLE_ZAP_UUID, BLE_VIBE_UUID,
-        BLE_CONNECT_TIMEOUT, BLE_RECONNECT_INTERVAL
+        BLE_CONNECT_TIMEOUT, BLE_RECONNECT_INTERVAL, BLE_KEEPALIVE_INTERVAL
     )
 
     if not BLE_DEVICE_MAC:
@@ -234,6 +270,7 @@ def ble_connect() -> bool:
         vibe_uuid=BLE_VIBE_UUID,
         connect_timeout=BLE_CONNECT_TIMEOUT,
         reconnect_interval=BLE_RECONNECT_INTERVAL,
+        keepalive_interval=BLE_KEEPALIVE_INTERVAL,
     )
 
     # 接続

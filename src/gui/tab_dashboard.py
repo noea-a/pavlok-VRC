@@ -1,7 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-import threading
-import time as time_module
 
 
 class DashboardTab(ttk.Frame):
@@ -55,32 +53,6 @@ class DashboardTab(ttk.Frame):
         self.detail_text = tk.Text(detail_frame, height=5, width=60, state="disabled")
         self.detail_text.pack(fill="both", expand=True)
 
-        # テスト送信パネル
-        test_frame = ttk.LabelFrame(frame, text="テスト送信（VRChat不要）", padding=10)
-        test_frame.pack(fill="x", pady=10)
-
-        grab_test_frame = ttk.Frame(test_frame)
-        grab_test_frame.pack(fill="x", pady=5)
-        ttk.Label(grab_test_frame, text="Grab状態:", width=15).pack(side="left")
-        ttk.Button(grab_test_frame, text="Grab開始", command=self.test_grab_start, width=10).pack(side="left", padx=2)
-        ttk.Button(grab_test_frame, text="Grab終了", command=self.test_grab_end, width=10).pack(side="left", padx=2)
-
-        stretch_test_frame = ttk.Frame(test_frame)
-        stretch_test_frame.pack(fill="x", pady=5)
-        ttk.Label(stretch_test_frame, text="Stretch値:", width=15).pack(side="left")
-        self.test_stretch_var = tk.DoubleVar(value=0.0)
-        self.test_stretch_slider = ttk.Scale(stretch_test_frame, from_=0.0, to=1.0, orient="horizontal",
-                                              variable=self.test_stretch_var, command=self.on_test_stretch_change)
-        self.test_stretch_slider.pack(side="left", fill="x", expand=True, padx=5)
-        self.test_stretch_label = ttk.Label(stretch_test_frame, text="0.000", width=6)
-        self.test_stretch_label.pack(side="left")
-
-        quick_test_frame = ttk.Frame(test_frame)
-        quick_test_frame.pack(fill="x", pady=5)
-        ttk.Label(quick_test_frame, text="クイックテスト:", width=15).pack(side="left")
-        ttk.Button(quick_test_frame, text="弱い掴み", command=lambda: self.test_grab_sequence(0.3, 1.5), width=12).pack(side="left", padx=2)
-        ttk.Button(quick_test_frame, text="中くらい", command=lambda: self.test_grab_sequence(0.6, 2.0), width=12).pack(side="left", padx=2)
-        ttk.Button(quick_test_frame, text="強い掴み", command=lambda: self.test_grab_sequence(0.9, 2.5), width=12).pack(side="left", padx=2)
 
     def update(self, data: dict):
         from datetime import datetime
@@ -120,45 +92,3 @@ class DashboardTab(ttk.Frame):
         except Exception as e:
             print(f"Error updating dashboard: {e}")
 
-    def test_grab_start(self):
-        self.test_stretch_var.set(0.0)
-        self.test_stretch_label.config(text="0.000")
-        if self.grab_state:
-            self.grab_state.is_test_mode = True
-            self.grab_state.on_grabbed_change(True)
-        print("[Test Send] Grab Start")
-
-    def test_grab_end(self):
-        stretch = self.test_stretch_var.get()
-        if self.grab_state:
-            self.grab_state.on_grabbed_change(False)
-            self.grab_state.is_test_mode = False
-        self.test_stretch_var.set(0.0)
-        self.test_stretch_label.config(text="0.000")
-        print(f"[Test Send] Grab End (Final Stretch: {stretch:.3f})")
-
-    def on_test_stretch_change(self, value):
-        stretch = float(value)
-        self.test_stretch_label.config(text=f"{stretch:.3f}")
-        if self.grab_status_label.cget("text") == "True":
-            if self.grab_state:
-                self.grab_state.on_stretch_change(stretch)
-
-    def test_grab_sequence(self, max_stretch, duration):
-        def sequence():
-            if self.grab_state:
-                self.grab_state.is_test_mode = True
-            self.test_grab_start()
-            time_module.sleep(0.1)
-            steps = 20
-            for i in range(steps + 1):
-                stretch = (max_stretch / steps) * i
-                self.test_stretch_var.set(stretch)
-                self.on_test_stretch_change(stretch)
-                time_module.sleep(duration / steps)
-            self.test_grab_end()
-            if self.grab_state:
-                self.grab_state.is_test_mode = False
-            print(f"[Test Complete] max_stretch={max_stretch:.1f}, duration={duration:.1f}s")
-
-        threading.Thread(target=sequence, daemon=True).start()

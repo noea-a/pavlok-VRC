@@ -7,6 +7,7 @@ from gui.tab_dashboard import DashboardTab
 from gui.tab_settings import SettingsTab
 from gui.tab_log import LogTab
 from gui.tab_stats import StatsTab
+from gui.tab_test import TestTab
 
 
 class QueueHandler(logging.Handler):
@@ -60,6 +61,9 @@ class PavlokGUI(tk.Tk):
         self.tab_stats = StatsTab(self.notebook)
         self.notebook.add(self.tab_stats, text="統計")
 
+        self.tab_test = TestTab(self.notebook)
+        self.notebook.add(self.tab_test, text="テスト")
+
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.poll_data()
 
@@ -74,6 +78,8 @@ class PavlokGUI(tk.Tk):
             self.tab_dashboard.set_grab_state(value)
         if hasattr(self, 'tab_stats'):
             self.tab_stats.set_grab_state(value)
+        if hasattr(self, 'tab_test'):
+            self.tab_test.set_grab_state(value)
 
     def poll_data(self):
         try:

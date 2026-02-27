@@ -10,11 +10,21 @@ _ble_loop: asyncio.AbstractEventLoop | None = None
 _ble_thread: threading.Thread | None = None
 _ble_instance: "PavlokBLE | None" = None
 
+# 接続直後のデバイス側準備待ち（秒）
+_CONNECT_SETTLE_DELAY = 0.3
+
+# 書き込みリトライ回数
+_WRITE_RETRIES = 2
+
 
 class PavlokBLE:
-    """Pavlok 3 BLE直接制御クラス（接続維持方式）"""
+    """Pavlok 3 BLE直接制御クラス（接続維持方式）
 
-    # webtool.js の c_api UUID（接続確認用）
+    disconnected_callback は WinRT で誤発火するため使用しない。
+    代わりに送信前に is_connected を確認し、切断時はその場で再接続する。
+    """
+
+    # check_api UUID（接続確認用）
     _C_API_UUID = "00001004-0000-1000-8000-00805f9b34fb"
 
     def __init__(self, mac: str, zap_uuid: str, vibe_uuid: str,
@@ -25,95 +35,115 @@ class PavlokBLE:
         self._connect_timeout = connect_timeout
         self._reconnect_interval = reconnect_interval
         self._client: BleakClient | None = None
-        self._connected = False
-        self._reconnecting = False
+        self._should_stop = False  # ble_disconnect() で True にして再接続ループを止める
+
+    @property
+    def is_connected(self) -> bool:
+        return self._client is not None and self._client.is_connected
 
     async def connect(self) -> bool:
-        """Pavlok 3 に BLE 接続する。成功時 True を返す。"""
+        """Pavlok 3 に BLE 接続する。成功時 True を返す。
+
+        毎回新しい BleakClient インスタンスを生成する（再接続安定化）。
+        disconnected_callback は使用しない（WinRT 誤発火回避）。
+        """
+        # 古いクライアントが残っている場合は切断
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+            except Exception:
+                pass
+            self._client = None
+
         try:
-            self._client = BleakClient(
-                self._mac,
-                timeout=self._connect_timeout,
-                disconnected_callback=self._on_disconnect,
-            )
+            self._client = BleakClient(self._mac, timeout=self._connect_timeout)
             await self._client.connect()
-            self._connected = True
+
+            # デバイス側の準備が整うまで待機
+            await asyncio.sleep(_CONNECT_SETTLE_DELAY)
+
+            if not self._client.is_connected:
+                logger.error("BLE connect: client reported disconnected after settle")
+                return False
+
             logger.info(f"BLE connected: {self._mac}")
 
-            # webtool.js の check_api 相当（接続確認書き込み）
+            # check_api 書き込み（失敗しても続行）
             try:
                 await self._client.write_gatt_char(
-                    self._C_API_UUID, bytes([87, 84]), response=False
+                    self._C_API_UUID, bytes([87, 84]), response=True
                 )
-            except Exception:
-                pass  # check_api 失敗は致命的でない
+            except Exception as e:
+                logger.debug(f"check_api write skipped: {e}")
 
             return True
 
         except (BleakError, asyncio.TimeoutError, Exception) as e:
             logger.error(f"BLE connect failed: {e}")
-            self._connected = False
+            self._client = None
             return False
 
     async def disconnect(self) -> None:
-        """BLE 接続を切断する。"""
-        self._reconnecting = False  # 再接続ループを止める
-        if self._client and self._connected:
+        """BLE 接続を意図的に切断する。"""
+        self._should_stop = True
+        if self._client is not None:
             try:
                 await self._client.disconnect()
             except Exception as e:
-                logger.warning(f"BLE disconnect error: {e}")
-        self._connected = False
+                logger.debug(f"BLE disconnect error (ignored): {e}")
+            self._client = None
         logger.info("BLE disconnected")
 
     async def send_zap(self, intensity: int) -> bool:
-        """Zap コマンドを送信する。"""
-        if not self._connected or not self._client:
-            logger.warning("BLE not connected, cannot send zap")
-            return False
-        try:
-            cmd = bytes([0x89, intensity])
-            await self._client.write_gatt_char(self._zap_uuid, cmd, response=False)
-            logger.info(f"BLE Zap sent: intensity={intensity}")
-            return True
-        except Exception as e:
-            logger.error(f"BLE send_zap failed: {e}")
-            return False
+        """Zap コマンドを送信する（切断時は自動再接続）。"""
+        cmd = bytes([0x89, intensity])
+        return await self._write_with_retry(self._zap_uuid, cmd, "Zap", intensity)
 
     async def send_vibration(self, intensity: int) -> bool:
-        """Vibration コマンドを送信する。"""
-        if not self._connected or not self._client:
-            logger.warning("BLE not connected, cannot send vibration")
-            return False
-        try:
-            cmd = bytes([0x81, 2, intensity, 22, 22])
-            await self._client.write_gatt_char(self._vibe_uuid, cmd, response=False)
-            logger.info(f"BLE Vibration sent: intensity={intensity}")
+        """Vibration コマンドを送信する（切断時は自動再接続）。"""
+        cmd = bytes([0x81, 2, intensity, 22, 22])
+        return await self._write_with_retry(self._vibe_uuid, cmd, "Vibration", intensity)
+
+    async def _ensure_connected(self) -> bool:
+        """接続されていなければ再接続を試みる（最大3回）。"""
+        if self.is_connected:
             return True
-        except Exception as e:
-            logger.error(f"BLE send_vibration failed: {e}")
+
+        logger.warning("BLE not connected. Attempting to reconnect...")
+        for attempt in range(1, 4):
+            if self._should_stop:
+                return False
+            logger.info(f"BLE reconnect attempt {attempt}/3...")
+            if await self.connect():
+                return True
+            await asyncio.sleep(self._reconnect_interval)
+
+        logger.error("BLE reconnect failed")
+        return False
+
+    async def _write_with_retry(self, uuid: str, cmd: bytes, label: str, intensity: int) -> bool:
+        """接続確認 → GATT write（失敗時リトライ）。
+
+        00001001/00001002 は write-without-response プロパティを持たないため
+        response=True を使用する。
+        """
+        if not await self._ensure_connected():
             return False
 
-    def _on_disconnect(self, client: BleakClient) -> None:
-        """切断コールバック。再接続ループを起動する。"""
-        self._connected = False
-        logger.warning("BLE disconnected (unexpected). Starting reconnect loop...")
-        if not self._reconnecting:
-            self._reconnecting = True
-            asyncio.run_coroutine_threadsafe(self._reconnect_loop(), _ble_loop)
+        for attempt in range(1, _WRITE_RETRIES + 1):
+            try:
+                await self._client.write_gatt_char(uuid, cmd, response=True)
+                logger.info(f"BLE {label} sent: intensity={intensity}")
+                return True
+            except Exception as e:
+                logger.warning(f"BLE {label} write failed (attempt {attempt}/{_WRITE_RETRIES}): {e}")
+                if attempt < _WRITE_RETRIES:
+                    # 書き込み失敗時は再接続してからリトライ
+                    await asyncio.sleep(0.3)
+                    await self._ensure_connected()
 
-    async def _reconnect_loop(self) -> None:
-        """切断後に最大5回再接続を試みる。"""
-        for attempt in range(1, 6):
-            if not self._reconnecting:
-                break
-            logger.info(f"BLE reconnect attempt {attempt}/5 (waiting {self._reconnect_interval}s)...")
-            await asyncio.sleep(self._reconnect_interval)
-            if await self.connect():
-                self._reconnecting = False
-                return
-        logger.error("BLE reconnect failed after 5 attempts")
-        self._reconnecting = False
+        logger.error(f"BLE {label} write failed after {_WRITE_RETRIES} attempts")
+        return False
 
 
 # ===== モジュールレベルの同期 API =====
@@ -125,20 +155,16 @@ def _run_ble_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 def ble_connect() -> bool:
-    """
-    BLE 専用スレッドを起動し、Pavlok 3 に接続する。
-    成功時 True、失敗時 False を返す。
-    """
+    """BLE 専用スレッドを起動し、Pavlok 3 に接続する。"""
     global _ble_loop, _ble_thread, _ble_instance
 
-    # config をランタイムで読み込む
     from config import (
         BLE_DEVICE_MAC, BLE_ZAP_UUID, BLE_VIBE_UUID,
         BLE_CONNECT_TIMEOUT, BLE_RECONNECT_INTERVAL
     )
 
     if not BLE_DEVICE_MAC:
-        logger.error("BLE_DEVICE_MAC が設定されていません（config.py を確認してください）")
+        logger.error("BLE_DEVICE_MAC が設定されていません（.env を確認してください）")
         return False
 
     _ble_loop = asyncio.new_event_loop()
@@ -155,7 +181,7 @@ def ble_connect() -> bool:
 
     future = asyncio.run_coroutine_threadsafe(_ble_instance.connect(), _ble_loop)
     try:
-        return future.result(timeout=BLE_CONNECT_TIMEOUT + 2)
+        return future.result(timeout=BLE_CONNECT_TIMEOUT + 3)
     except Exception as e:
         logger.error(f"ble_connect timeout/error: {e}")
         return False
@@ -183,7 +209,7 @@ def ble_send_zap(intensity: int) -> bool:
         return False
     future = asyncio.run_coroutine_threadsafe(_ble_instance.send_zap(intensity), _ble_loop)
     try:
-        return future.result(timeout=5)
+        return future.result(timeout=10)
     except Exception as e:
         logger.error(f"ble_send_zap error: {e}")
         return False
@@ -196,7 +222,7 @@ def ble_send_vibration(intensity: int) -> bool:
         return False
     future = asyncio.run_coroutine_threadsafe(_ble_instance.send_vibration(intensity), _ble_loop)
     try:
-        return future.result(timeout=5)
+        return future.result(timeout=10)
     except Exception as e:
         logger.error(f"ble_send_vibration error: {e}")
         return False

@@ -46,6 +46,8 @@ CONTROL_MODE = "ble"  # "api" or "ble"
 BLE_DEVICE_MAC = os.getenv("BLE_DEVICE_MAC", "")  # .env に設定（デバイス固有値）
 BLE_CONNECT_TIMEOUT = 10.0   # 接続タイムアウト（秒）
 BLE_RECONNECT_INTERVAL = 5.0  # 再接続間隔（秒）
+VIBRATION_TON = 22   # バイブ ON 時間（0～255）
+VIBRATION_TOFF = 22  # バイブ OFF 時間（0～255、反復間隔）
 
 # BLE UUID（Pavlok 3 確定値）
 BLE_SERVICE_UUID = "156e5000-a300-4fea-897b-86f698d74461"

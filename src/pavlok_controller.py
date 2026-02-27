@@ -155,7 +155,8 @@ def send_vibration(intensity: int) -> bool:
 
     if CONTROL_MODE == "ble":
         from ble_controller import ble_send_vibration
-        return ble_send_vibration(intensity)
+        from config import VIBRATION_TON, VIBRATION_TOFF
+        return ble_send_vibration(intensity, VIBRATION_TON, VIBRATION_TOFF)
     else:
         return _send_api_vibration(intensity)
 

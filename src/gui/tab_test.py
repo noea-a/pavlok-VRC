@@ -12,7 +12,9 @@ class TestTab(ttk.Frame):
         super().__init__(parent)
         self.grab_state = None
         self.test_stretch_var = tk.DoubleVar(value=0.0)
+        self._ble_counter = 0
         self._create_unit_test_panel()
+        self._create_ble_raw_panel()
         self._create_grab_sim_panel()
 
     def set_grab_state(self, grab_state):
@@ -72,6 +74,79 @@ class TestTab(ttk.Frame):
             daemon=True,
         ).start()
         print(f"[Unit Test] Zap {level} ({intensity})")
+
+    # ------------------------------------------------------------------ #
+    # BLE 生コマンド テストセクション                                     #
+    # ------------------------------------------------------------------ #
+
+    def _create_ble_raw_panel(self):
+        frame = ttk.LabelFrame(self, text="BLE 生コマンド（Vibration）", padding=10)
+        frame.pack(fill="x", padx=10, pady=(5, 5))
+
+        # パラメータ説明ラベル
+        ttk.Label(frame, text="コマンド: [0x80|counter, mode, intensity, ton, toff]",
+                  foreground="gray").pack(anchor="w", pady=(0, 6))
+
+        grid = ttk.Frame(frame)
+        grid.pack(fill="x")
+
+        fields = [
+            ("counter",   "カウンタ (0-127)",    0,   0, 127),
+            ("mode",      "モード",              2,   0, 255),
+            ("intensity", "強度 (0-100)",        50,  0, 100),
+            ("ton",       "ton",                22,  0, 255),
+            ("toff",      "toff",               22,  0, 255),
+        ]
+
+        self._raw_vars = {}
+        for row, (key, label, default, mn, mx) in enumerate(fields):
+            ttk.Label(grid, text=label, width=20).grid(row=row, column=0, sticky="w", pady=3)
+            var = tk.IntVar(value=default)
+            sb = ttk.Spinbox(grid, from_=mn, to=mx, textvariable=var, width=8)
+            sb.grid(row=row, column=1, sticky="w", padx=5, pady=3)
+            self._raw_vars[key] = var
+
+        # カウンタ自動インクリメント
+        auto_frame = ttk.Frame(frame)
+        auto_frame.pack(fill="x", pady=(6, 2))
+        self._auto_counter_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(auto_frame, text="送信ごとにカウンタを自動インクリメント",
+                        variable=self._auto_counter_var).pack(side="left")
+
+        # 送信ボタン & 結果表示
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(4, 0))
+        ttk.Button(btn_frame, text="送信", width=10, command=self._send_raw_vibe).pack(side="left", padx=2)
+        self._raw_result_label = ttk.Label(btn_frame, text="", foreground="gray")
+        self._raw_result_label.pack(side="left", padx=8)
+
+    def _send_raw_vibe(self):
+        counter   = self._raw_vars["counter"].get() & 0x7F
+        mode      = self._raw_vars["mode"].get()
+        intensity = self._raw_vars["intensity"].get()
+        ton       = self._raw_vars["ton"].get()
+        toff      = self._raw_vars["toff"].get()
+
+        cmd = bytes([0x80 | counter, mode, intensity, ton, toff])
+        label_text = f"送信: {list(cmd)}"
+        self._raw_result_label.config(text=label_text)
+        print(f"[BLE Raw] {label_text}")
+
+        if self._auto_counter_var.get():
+            next_counter = (counter + 1) & 0x7F
+            self._raw_vars["counter"].set(next_counter)
+
+        def _send():
+            try:
+                from ble_controller import ble_send_raw_vibe
+                ok = ble_send_raw_vibe(cmd)
+                result = "OK" if ok else "FAILED"
+            except Exception as e:
+                result = f"ERROR: {e}"
+            print(f"[BLE Raw] result={result}")
+            self._raw_result_label.config(text=f"{label_text}  →  {result}")
+
+        threading.Thread(target=_send, daemon=True).start()
 
     # ------------------------------------------------------------------ #
     # Grab シミュレーションセクション（tab_dashboard.py から移動）        #

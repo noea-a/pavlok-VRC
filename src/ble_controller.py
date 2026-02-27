@@ -99,9 +99,10 @@ class PavlokBLE:
         cmd = bytes([0x89, intensity])
         return await self._write_with_retry(self._zap_uuid, cmd, "Zap", intensity)
 
-    async def send_vibration(self, intensity: int, ton: int = 22, toff: int = 22) -> bool:
+    async def send_vibration(self, intensity: int, count: int = 1, ton: int = 22, toff: int = 22) -> bool:
         """Vibration コマンドを送信する（切断時は自動再接続）。"""
-        cmd = bytes([0x81, 2, intensity, ton, toff])
+        count = max(1, min(127, int(count)))
+        cmd = bytes([0x80 | count, 2, intensity, ton, toff])
         return await self._write_with_retry(self._vibe_uuid, cmd, "Vibration", intensity)
 
     async def _ensure_connected(self) -> bool:
@@ -232,13 +233,13 @@ def ble_send_raw_vibe(cmd: bytes) -> bool:
         return False
 
 
-def ble_send_vibration(intensity: int, ton: int = 22, toff: int = 22) -> bool:
+def ble_send_vibration(intensity: int, count: int = 1, ton: int = 22, toff: int = 22) -> bool:
     """同期ラッパー：Vibration を送信する。"""
     if not _ble_instance or not _ble_loop:
         logger.error("BLE未接続です。ble_connect() を先に呼んでください。")
         return False
     future = asyncio.run_coroutine_threadsafe(
-        _ble_instance.send_vibration(intensity, ton, toff), _ble_loop
+        _ble_instance.send_vibration(intensity, count, ton, toff), _ble_loop
     )
     try:
         return future.result(timeout=10)

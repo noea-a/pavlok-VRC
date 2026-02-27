@@ -113,12 +113,11 @@ class SettingsTab(ttk.Frame):
                         return
 
                 for i, line in enumerate(config_lines):
-                    if line.strip().startswith(key + " ="):
+                    if line.strip().startswith(key + " =") or line.strip().startswith(key + "="):
+                        comment_part = ""
                         if '#' in line:
-                            comment_part = '#' + line.split('#', 1)[1]
-                        else:
-                            comment_part = ""
-                        config_lines[i] = f"{key} = {value}  {comment_part}\n"
+                            comment_part = "  #" + line.split('#', 1)[1].rstrip('\n')
+                        config_lines[i] = f"{key} = {value}{comment_part}\n"
                         break
 
             with open(config_path, 'w', encoding='utf-8') as f:

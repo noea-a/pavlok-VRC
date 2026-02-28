@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import logging
 from queue import Queue, Empty
 
+from version import __version__
 from gui.tab_dashboard import DashboardTab
 from gui.tab_settings import SettingsTab
 from gui.tab_log import LogTab
@@ -27,7 +28,7 @@ class QueueHandler(logging.Handler):
 class PavlokGUI(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("VRChat Pavlok Connector - Dashboard")
+        self.title(f"VRChat Pavlok Connector v{__version__}")
         self.geometry("800x600")
 
         self.status_queue = Queue()
@@ -109,7 +110,7 @@ class PavlokGUI(tk.Tk):
             self.after(1000, self.poll_data)
 
     def show_about(self):
-        messagebox.showinfo("バージョン情報", "VRChat Pavlok Connector\nGUI Dashboard v1.2")
+        messagebox.showinfo("バージョン情報", f"VRChat Pavlok Connector\nv{__version__}\n\n🎮 VRChatのPhysBoneを\nPavlokデバイスへ刺激送信\n\n📝 Zap実行記録・統計機能搭載")
 
     def on_close(self):
         self.is_running = False

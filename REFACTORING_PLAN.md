@@ -35,10 +35,10 @@
 ### Phase 3: 強度計算の分離
 **目的**: デバイス制御コードから純粋計算ロジックを切り出し、テスト可能にする
 
-- [ ] **3-1** `src/intensity.py` を作成：`calculate_intensity()` と `normalize_for_display()` を純粋関数として実装
-  - 引数で設定値を受け取る（グローバル変数に依存しない）
-- [ ] **3-2** `pavlok_controller.py` と `ble_controller.py` から計算関数を削除し、`intensity.py` を参照するように変更
-- [ ] **3-3** `tools/test_nonlinear_intensity.py` を `tests/test_intensity.py` として pytest 形式に書き直す
+- [x] **3-1** `src/intensity.py` を作成：`calculate_intensity()` と `normalize_for_display()` を純粋関数として実装
+  - IntensityConfig dataclass で設定値を受け取る（グローバル変数に依存しない）
+- [x] **3-2** `pavlok_controller.py` から計算ロジックを削除し、`intensity.py` への薄いラッパーに変更
+- [x] **3-3** `tests/test_intensity.py` を pytest 形式で新規作成（16テスト、外部依存なし）
 
 ---
 

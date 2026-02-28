@@ -47,8 +47,8 @@ toff = 10
 [stretch_vibration]
 intensity = 80
 count = 2
-ton = 6
-toff = 12
+ton = 4
+toff = 6
 threshold = 0.7
 hysteresis_offset = 0.15
 

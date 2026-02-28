@@ -125,9 +125,6 @@ class TestTab(ttk.Frame):
         self._raw_result_label.config(text=label_text)
         print(f"[BLE Raw] {label_text}")
 
-        next_counter = (counter + 1) & 0x7F
-        self._raw_vars["counter"].set(next_counter)
-
         def _send():
             try:
                 ok = stimulus_controller.send_raw_vibe(cmd)

@@ -44,8 +44,8 @@ class DashboardTab(ttk.Frame):
         self._disconnect_btn.pack(side="left", padx=(0, 8))
         self._batt_btn = ttk.Button(btn_row, text="残量更新", width=10, command=self._refresh_battery, state="disabled")
         self._batt_btn.pack(side="left", padx=(0, 8))
-        self._scan_btn = ttk.Button(btn_row, text="デバイス探索", width=10, command=self._on_scan_devices)
-        self._scan_btn.pack(side="left")
+        self._delete_btn = ttk.Button(btn_row, text="アドレス削除", width=10, command=self._on_delete_mac)
+        self._delete_btn.pack(side="left")
 
         # ---- リアルタイム状態 ----
         frame = ttk.LabelFrame(self, text="リアルタイム状態", padding=10)
@@ -108,6 +108,12 @@ class DashboardTab(ttk.Frame):
             self._disconnect_btn.config(state="disabled")
 
     def _on_connect(self):
+        import os
+        # MAC アドレスが未設定の場合はスキャン
+        if not os.getenv("BLE_DEVICE_MAC") or not os.getenv("BLE_DEVICE_MAC").strip():
+            self._on_scan_devices()
+            return
+
         if self._device is None:
             return
         self._connect_btn.config(state="disabled")
@@ -271,4 +277,26 @@ class DashboardTab(ttk.Frame):
 
         with open(env_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
+
+    def _on_delete_mac(self):
+        """MAC アドレスを .env から削除"""
+        from pathlib import Path
+        from tkinter import messagebox
+
+        env_path = Path(__file__).parent.parent.parent / ".env"
+
+        if not env_path.exists():
+            messagebox.showwarning("警告", ".env ファイルが見つかりません")
+            return
+
+        with open(env_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        # BLE_DEVICE_MAC 行を削除
+        lines = [line for line in lines if not line.startswith("BLE_DEVICE_MAC=")]
+
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+
+        messagebox.showinfo("成功", "MAC アドレスを削除しました。\nアプリを再起動してください。")
 

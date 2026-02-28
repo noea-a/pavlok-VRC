@@ -49,6 +49,7 @@ class OscSendSettings:
     chatbox_param: str = "/chatbox/input"
     interval: float = 1.5
     realtime_chatbox: bool = True
+    final_chatbox: bool = True
 
 
 @dataclass
@@ -206,6 +207,7 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "VIBRATION_ON_STRETCH_TOFF":          ("stretch_vibration", "toff"),
     "OSC_SEND_INTERVAL":                  ("osc.send", "interval"),
     "SEND_REALTIME_CHATBOX":              ("osc.send", "realtime_chatbox"),
+    "SEND_FINAL_CHATBOX":                 ("osc.send", "final_chatbox"),
     # 詳細設定
     "BLE_CONNECT_TIMEOUT":               ("ble", "connect_timeout"),
     "BLE_RECONNECT_INTERVAL":            ("ble", "reconnect_interval"),

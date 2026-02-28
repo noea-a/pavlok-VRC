@@ -63,9 +63,9 @@ class SettingsTab(ttk.Frame):
         basic_frame.pack(fill="x", pady=(0, 6))
 
         self._add_spinbox_items(basic_frame, [
-            ("MIN_STIMULUS_VALUE",             "Zap の最小値（％）",         "int",   15, 0, 100, 1, ""),
-            ("MAX_STIMULUS_VALUE",             "Zap の最大値（％）",         "int",   70, 0, 100, 1, ""),
-            ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（％）",         "float", 70, 0, 100, 100, "高出力の場合にバイブで警告します"),
+            ("MIN_STIMULUS_VALUE", "Zap の最小値（％）", "int", 15, 0, 100, 1, ""),
+            ("MAX_STIMULUS_VALUE", "Zap の最大値（％）", "int", 70, 0, 100, 1, ""),
+            ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（％）", "float", 70, 0, 100, 100, "高出力の場合にバイブで警告します"),
         ])
 
         # ===== 詳細設定 トグル =====
@@ -89,38 +89,38 @@ class SettingsTab(ttk.Frame):
         zap_frame = ttk.LabelFrame(parent, text="Zap 強度・閾値", padding=8)
         zap_frame.pack(fill="x", pady=(6, 4))
         self._add_spinbox_items(zap_frame, [
-            ("MIN_GRAB_DURATION",              "掴み判定時間（秒）",         "float", 0.8, 0.1, 10.0, 1, "これ未満の掴み時間は処理しません"),
-            ("MIN_STRETCH_THRESHOLD",          "最小閾値",                   "float", 0.03, 0.0, 1.0, 1, "これ未満の引っ張り度は処理しません"),
-            ("VIBRATION_HYSTERESIS_OFFSET",    "高出力警告のヒステリシス（％）",     "float", 15, 0, 100, 100, "チャタリング防止"),
+            ("MIN_GRAB_DURATION", "掴み判定時間（秒）", "float", 0.8, 0.1, 10.0, 1, "これ未満の掴み時間は処理しません"),
+            ("MIN_STRETCH_THRESHOLD", "最小閾値", "float", 0.03, 0.0, 1.0, 1, "これ未満の引っ張り度は処理しません"),
+            ("VIBRATION_HYSTERESIS_OFFSET", "高出力警告のヒステリシス（％）", "float", 15, 0, 100, 100, "チャタリング防止"),
         ])
 
         # --- 掴み開始バイブ ---
         gs_frame = ttk.LabelFrame(parent, text="掴み開始バイブ", padding=8)
         gs_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(gs_frame, [
-            ("GRAB_START_VIBRATION_INTENSITY", "強度（％）",       "int", 20, 0, 100, 1, ""),
-            ("GRAB_START_VIBRATION_TON",       "継続時間（ms）",   "int", 10, 0, 255, 1, ""),
-            ("GRAB_START_VIBRATION_COUNT",     "実行回数",   "int", 1, 1, 127, 1, ""),
-            ("GRAB_START_VIBRATION_TOFF",      "インターバル（ms）", "int", 10, 0, 255, 1, ""),
+            ("GRAB_START_VIBRATION_INTENSITY", "強度（％）", "int", 20, 0, 100, 1, ""),
+            ("GRAB_START_VIBRATION_TON", "継続時間（ms）", "int", 10, 0, 255, 1, ""),
+            ("GRAB_START_VIBRATION_COUNT", "実行回数", "int", 1, 1, 127, 1, ""),
+            ("GRAB_START_VIBRATION_TOFF", "インターバル（ms）", "int", 10, 0, 255, 1, ""),
         ])
 
         # --- 警告バイブ ---
         sv_frame = ttk.LabelFrame(parent, text="警告バイブ（引っ張り度 超過時）", padding=8)
         sv_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(sv_frame, [
-            ("VIBRATION_ON_STRETCH_INTENSITY", "強度（％）",       "int", 80, 0, 100, 1, ""),
-            ("VIBRATION_ON_STRETCH_TON",       "継続時間（ms）",   "int", 6, 0, 255, 1, ""),
-            ("VIBRATION_ON_STRETCH_COUNT",     "実行回数",   "int", 2, 1, 127, 1, ""),
-            ("VIBRATION_ON_STRETCH_TOFF",      "インターバル（ms）", "int", 12, 0, 255, 1, ""),
+            ("VIBRATION_ON_STRETCH_INTENSITY", "強度（％）", "int", 80, 0, 100, 1, ""),
+            ("VIBRATION_ON_STRETCH_TON", "継続時間（ms）", "int", 6, 0, 255, 1, ""),
+            ("VIBRATION_ON_STRETCH_COUNT", "実行回数", "int", 2, 1, 127, 1, ""),
+            ("VIBRATION_ON_STRETCH_TOFF", "インターバル（ms）", "int", 12, 0, 255, 1, ""),
         ])
 
         # --- OSC ---
         osc_frame = ttk.LabelFrame(parent, text="OSC", padding=8)
         osc_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(osc_frame, [
-            ("OSC_SEND_INTERVAL", "Chatbox 更新間隔（秒）", "float", 1.5,  0.0, 10.0, 1, "極端に短くするとスパムとして扱われる可能性があります"),
-            ("OSC_LISTEN_PORT",   "受信ポート",            "int",   9001, 1024, 65535, 1, "VRChat からの OSC 受信ポート"),
-            ("OSC_SEND_PORT",     "送信ポート",            "int",   9000, 1024, 65535, 1, "VRChat への OSC 送信ポート"),
+            ("OSC_SEND_INTERVAL", "Chatbox 更新間隔（秒）", "float", 1.5, 0.0, 10.0, 1, "極端に短くするとスパムとして扱われる可能性があります"),
+            ("OSC_LISTEN_PORT", "受信ポート", "int", 9001, 1024, 65535, 1, "VRChat からの OSC 受信ポート"),
+            ("OSC_SEND_PORT", "送信ポート", "int", 9000, 1024, 65535, 1, "VRChat への OSC 送信ポート"),
         ])
         self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "リアルタイム表示", True,
                             row=3, desc="Zap 値を Chatbox へ送信します")
@@ -129,22 +129,22 @@ class SettingsTab(ttk.Frame):
         ble_frame = ttk.LabelFrame(parent, text="BLE 接続パラメータ", padding=8)
         ble_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(ble_frame, [
-            ("BLE_CONNECT_TIMEOUT",          "接続タイムアウト（秒）",     "float",  10.0,  1.0,  60.0, 1, "接続試行を諦めるまでの時間"),
-            ("BLE_RECONNECT_INTERVAL",       "再接続間隔（秒）",           "float",   5.0,  1.0,  30.0, 1, "切断後に再接続を試みる周期"),
-            ("BLE_KEEPALIVE_INTERVAL",       "接続維持間隔（秒）",   "float",   5.5,  1.0,  60.0, 1, "接続維持信号の送信周期"),
-            ("BLE_BATTERY_REFRESH_INTERVAL", "バッテリー更新間隔（秒）",   "float", 180.0,  0.0, 600.0, 1, ""),
+            ("BLE_CONNECT_TIMEOUT", "接続タイムアウト（秒）", "float", 10.0, 1.0, 60.0, 1, "接続試行を諦めるまでの時間"),
+            ("BLE_RECONNECT_INTERVAL", "再接続間隔（秒）", "float", 5.0, 1.0, 30.0, 1, "切断後に再接続を試みる周期"),
+            ("BLE_KEEPALIVE_INTERVAL", "接続維持間隔（秒）", "float", 5.5, 1.0, 60.0, 1, "接続維持信号の送信周期"),
+            ("BLE_BATTERY_REFRESH_INTERVAL", "バッテリー更新間隔（秒）", "float", 180.0, 0.0, 600.0, 1, ""),
         ])
 
         # --- デバッグログ ---
         log_frame = ttk.LabelFrame(parent, text="デバッグログ", padding=8)
         log_frame.pack(fill="x", pady=(4, 6))
         log_items = [
-            ("LOG_STRETCH",    "Stretch",   True,  "引っ張り度"),
-            ("LOG_IS_GRABBED", "IsGrabbed", True,  "掴み状態"),
-            ("LOG_ANGLE",      "Angle",     False, "角度"),
-            ("LOG_IS_POSED",   "IsPosed",   False, "固定状態"),
-            ("LOG_OSC_SEND",   "OSC 送信",  True,  "OSC 送信内容"),
-            ("LOG_ALL_OSC",    "OSC 受信（全て）",    False, "OSC 受信内容（大量に出るので注意）"),
+            ("LOG_STRETCH", "Stretch", True, "引っ張り度"),
+            ("LOG_IS_GRABBED", "IsGrabbed", True, "掴み状態"),
+            ("LOG_ANGLE", "Angle", False, "角度"),
+            ("LOG_IS_POSED", "IsPosed", False, "固定状態"),
+            ("LOG_OSC_SEND", "OSC 送信", True, "OSC 送信内容"),
+            ("LOG_ALL_OSC", "OSC 受信（全て）", False, "OSC 受信内容（大量に出るので注意）"),
         ]
         for i, (key, label, default, desc) in enumerate(log_items):
             self._add_bool_item(log_frame, key, label, default, row=i, desc=desc)

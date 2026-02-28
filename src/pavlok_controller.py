@@ -7,6 +7,7 @@ pavlok_controller.py
 
 import logging
 from devices.base import PavlokDevice
+from intensity import IntensityConfig, calculate_intensity, normalize_for_display
 
 logger = logging.getLogger(__name__)
 
@@ -26,55 +27,17 @@ def _get_device() -> PavlokDevice:
     return _device
 
 
-# ===== 強度計算 =====
-
-def normalize_intensity_for_display(stimulus_value: int) -> int:
-    """Pavlok 内部値（MIN〜MAX）を表示用パーセント（MIN〜100）に変換する。"""
-    from config import MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE
-    if stimulus_value <= MIN_STIMULUS_VALUE:
-        return MIN_STIMULUS_VALUE
-    if stimulus_value >= MAX_STIMULUS_VALUE:
-        return 100
-    normalized = MIN_STIMULUS_VALUE + (
-        (stimulus_value - MIN_STIMULUS_VALUE)
-        / (MAX_STIMULUS_VALUE - MIN_STIMULUS_VALUE)
-        * (100 - MIN_STIMULUS_VALUE)
-    )
-    return int(round(normalized))
-
+# ===== 強度計算（intensity.py への薄いラッパー）=====
+# 既存コードが `from pavlok_controller import calculate_zap_intensity` で呼べるよう維持する。
 
 def calculate_zap_intensity(stretch_value: float) -> int:
-    """Stretch 値（0.0〜1.0）を刺激強度（内部値）に変換する（折れ線グラフ）。"""
-    from config import (
-        MIN_STRETCH_THRESHOLD, MIN_STRETCH_PLATEAU,
-        MIN_STRETCH_FOR_CALC, MAX_STRETCH_FOR_CALC,
-        NONLINEAR_SWITCH_POSITION_PERCENT, INTENSITY_AT_SWITCH_PERCENT,
-        MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
-    )
+    """Stretch 値を刺激強度に変換する。設定は実行時に読み込む。"""
+    return calculate_intensity(stretch_value, IntensityConfig.from_settings())
 
-    if stretch_value < MIN_STRETCH_THRESHOLD:
-        return 0
-    if stretch_value <= MIN_STRETCH_PLATEAU:
-        return MIN_STIMULUS_VALUE
-    if stretch_value >= MAX_STRETCH_FOR_CALC:
-        return MAX_STIMULUS_VALUE
 
-    switch_stretch = MIN_STRETCH_PLATEAU + (
-        NONLINEAR_SWITCH_POSITION_PERCENT / 100.0
-    ) * (MAX_STRETCH_FOR_CALC - MIN_STRETCH_PLATEAU)
-
-    intensity_at_switch = MIN_STIMULUS_VALUE + (
-        INTENSITY_AT_SWITCH_PERCENT / 100.0
-    ) * (MAX_STIMULUS_VALUE - MIN_STIMULUS_VALUE)
-
-    if stretch_value <= switch_stretch:
-        t = (stretch_value - MIN_STRETCH_PLATEAU) / (switch_stretch - MIN_STRETCH_PLATEAU)
-        intensity = MIN_STIMULUS_VALUE + t * (intensity_at_switch - MIN_STIMULUS_VALUE)
-    else:
-        t = (stretch_value - switch_stretch) / (MAX_STRETCH_FOR_CALC - switch_stretch)
-        intensity = intensity_at_switch + t * (MAX_STIMULUS_VALUE - intensity_at_switch)
-
-    return int(max(MIN_STIMULUS_VALUE, min(MAX_STIMULUS_VALUE, intensity)))
+def normalize_intensity_for_display(stimulus_value: int) -> int:
+    """内部強度値を表示用パーセントに変換する。設定は実行時に読み込む。"""
+    return normalize_for_display(stimulus_value, IntensityConfig.from_settings())
 
 
 # ===== デバイスへのディスパッチ =====

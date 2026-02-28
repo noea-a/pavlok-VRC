@@ -13,12 +13,16 @@ matplotlib.use('Agg')  # GUI不要、ファイル出力のみ
 matplotlib.rcParams['axes.unicode_minus'] = False
 import matplotlib.pyplot as plt
 import numpy as np
-from pavlok_controller import calculate_zap_intensity
+from intensity import calculate_intensity, IntensityConfig
 from config import (
-    MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
     MIN_STRETCH_PLATEAU, MAX_STRETCH_FOR_CALC,
-    NONLINEAR_SWITCH_POSITION_PERCENT, INTENSITY_AT_SWITCH_PERCENT
+    NONLINEAR_SWITCH_POSITION_PERCENT,
 )
+
+_cfg = IntensityConfig.from_settings()
+
+def calculate_zap_intensity(stretch):
+    return calculate_intensity(stretch, _cfg)
 
 # 出力ディレクトリを準備
 script_dir = os.path.dirname(__file__)

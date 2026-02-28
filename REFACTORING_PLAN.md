@@ -24,18 +24,11 @@
 ### Phase 2: デバイス抽象化の完成
 **目的**: BLE/API 切り替えの `if CONTROL_MODE` 分岐をコード全体から一掃する
 
-- [ ] **2-1** `src/devices/base.py` を作成：`PavlokDevice` Protocol を定義
-  ```python
-  class PavlokDevice(Protocol):
-      def connect(self) -> bool: ...
-      def disconnect(self) -> None: ...
-      def send_zap(self, intensity: int) -> bool: ...
-      def send_vibration(self, intensity: int, count: int, ton: int, toff: int) -> bool: ...
-  ```
-- [ ] **2-2** `src/devices/ble_device.py` を作成：`ble_controller.py` の `PavlokBLE` クラスを `PavlokDevice` に準拠させてラップ
-- [ ] **2-3** `src/devices/api_device.py` を作成：`pavlok_controller.py` の API 送信部分を `PavlokDevice` に準拠させてラップ
-- [ ] **2-4** `src/devices/factory.py` を作成：`CONTROL_MODE` を見てデバイスを返すファクトリ関数
-- [ ] **2-5** `main.py` と `pavlok_controller.py` の `CONTROL_MODE` 分岐を全て削除し、ファクトリ経由に変更
+- [x] **2-1** `src/devices/base.py` を作成：`PavlokDevice` Protocol を定義
+- [x] **2-2** `src/devices/ble_device.py` を作成：`ble_controller.py` の `PavlokBLE` クラスを `PavlokDevice` に準拠させてラップ
+- [x] **2-3** `src/devices/api_device.py` を作成：`pavlok_controller.py` の API 送信部分を `PavlokDevice` に準拠させてラップ
+- [x] **2-4** `src/devices/factory.py` を作成：`CONTROL_MODE` を見てデバイスを返すファクトリ関数
+- [x] **2-5** `main.py` と `pavlok_controller.py` の `CONTROL_MODE` 分岐を全て削除し、ファクトリ経由に変更
 
 ---
 

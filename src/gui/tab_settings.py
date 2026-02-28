@@ -125,8 +125,8 @@ class SettingsTab(ttk.Frame):
         ble_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(ble_frame, [
             ("BLE_CONNECT_TIMEOUT",          "接続タイムアウト（秒）",     "float",  10.0,  1.0,  60.0, 1, "接続試行を諦めるまでの時間"),
-            ("BLE_RECONNECT_INTERVAL",       "再接続間隔（秒）",           "float",   5.0,  1.0,  30.0, 1, "切断後に再接続を試みる間隔"),
-            ("BLE_KEEPALIVE_INTERVAL",       "キープアライブ間隔（秒）",   "float",   5.5,  1.0,  60.0, 1, "接続維持周期"),
+            ("BLE_RECONNECT_INTERVAL",       "再接続間隔（秒）",           "float",   5.0,  1.0,  30.0, 1, "切断後に再接続を試みる周期"),
+            ("BLE_KEEPALIVE_INTERVAL",       "接続維持間隔（秒）",   "float",   5.5,  1.0,  60.0, 1, "接続維持信号の送信周期"),
             ("BLE_BATTERY_REFRESH_INTERVAL", "バッテリー更新間隔（秒）",   "float", 180.0,  0.0, 600.0, 1, ""),
         ])
 
@@ -253,8 +253,12 @@ class SettingsTab(ttk.Frame):
                 value_str = info["widget"].get()
                 try:
                     scale = info.get("display_scale", 1)
-                    raw = int(value_str) if info["type"] == "int" else float(value_str)
-                    changed[key] = raw / scale
+                    if info["type"] == "int":
+                        raw = int(float(value_str))  # "15.0" も "15" も対応
+                        changed[key] = int(raw / scale) if scale != 1 else raw
+                    else:
+                        raw = float(value_str)
+                        changed[key] = raw / scale
                 except ValueError:
                     messagebox.showerror("エラー", f"{info['label']} の値が無効です: {value_str!r}")
                     return

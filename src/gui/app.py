@@ -110,7 +110,7 @@ class PavlokGUI(tk.Tk):
             self.after(1000, self.poll_data)
 
     def show_about(self):
-        messagebox.showinfo("バージョン情報", f"VRChat Pavlok Connector\nv{__version__}\n\n🎮 VRChatのPhysBoneを\nPavlokデバイスへ刺激送信\n\n📝 Zap実行記録・統計機能搭載")
+        messagebox.showinfo("バージョン情報", f"VRChat Pavlok Connector v{__version__}")
 
     def on_close(self):
         self.is_running = False

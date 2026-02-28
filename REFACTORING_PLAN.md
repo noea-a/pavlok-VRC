@@ -68,9 +68,9 @@
 ### Phase 6: ディレクトリ整理と最終クリーンアップ
 **目的**: 不要ファイルの削除と構成の整頓
 
-- [ ] **6-1** 旧ファイルを削除：`src/osc_listener.py`, `src/ble_controller.py`（devices/ 配下に移行済み）
-- [ ] **6-2** `src/pavlok_bleak_controller.py`（未使用と思われる）の確認と削除
-- [ ] **6-3** 最終ディレクトリ構成を確認し `PROJECT_STRUCTURE.md` を更新
+- [x] **6-1** 旧ファイルを削除：`src/osc_listener.py`, `src/ble_controller.py`
+- [x] **6-2** `src/pavlok_bleak_controller.py` の確認 → `.py` 本体は既に存在しなかった（.pyc のみ、gitignore 対象）
+- [x] **6-3** `docs/PROJECT_STRUCTURE.md` を新構成に合わせて全面更新
 
 ---
 

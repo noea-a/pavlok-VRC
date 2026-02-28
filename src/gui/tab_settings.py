@@ -270,35 +270,42 @@ class SettingsTab(ttk.Frame):
             messagebox.showerror("エラー", f"設定の保存に失敗しました: {e}")
 
     def reset_settings(self):
+        """設定をデフォルト値（default.toml）にリセット"""
+        # default.toml から直接値を読み込む（常に最新で型を保証）
+        from settings import _load_toml, _DEFAULT_TOML, _apply_toml, Settings
+        default_data = _load_toml(_DEFAULT_TOML)
+        default_settings = Settings()
+        _apply_toml(default_settings, default_data)
+
         defaults = {
-            "MIN_STIMULUS_VALUE":             15,
-            "MAX_STIMULUS_VALUE":             70,
-            "MIN_GRAB_DURATION":              0.8,
-            "MIN_STRETCH_THRESHOLD":          0.03,
-            "VIBRATION_ON_STRETCH_THRESHOLD": 70,
-            "VIBRATION_HYSTERESIS_OFFSET":    15,
-            "GRAB_START_VIBRATION_INTENSITY": 20,
-            "GRAB_START_VIBRATION_COUNT":     1,
-            "GRAB_START_VIBRATION_TON":       10,
-            "GRAB_START_VIBRATION_TOFF":      10,
-            "VIBRATION_ON_STRETCH_INTENSITY": 80,
-            "VIBRATION_ON_STRETCH_COUNT":     2,
-            "VIBRATION_ON_STRETCH_TON":       6,
-            "VIBRATION_ON_STRETCH_TOFF":      12,
-            "OSC_SEND_INTERVAL":              1.5,
-            "SEND_REALTIME_CHATBOX":          True,
-            "BLE_CONNECT_TIMEOUT":            10.0,
-            "BLE_RECONNECT_INTERVAL":         5.0,
-            "BLE_KEEPALIVE_INTERVAL":         5.5,
-            "BLE_BATTERY_REFRESH_INTERVAL":   180.0,
-            "OSC_LISTEN_PORT":                9001,
-            "OSC_SEND_PORT":                  9000,
-            "LOG_STRETCH":                    True,
-            "LOG_IS_GRABBED":                 True,
-            "LOG_ANGLE":                      False,
-            "LOG_IS_POSED":                   False,
-            "LOG_OSC_SEND":                   True,
-            "LOG_ALL_OSC":                    False,
+            "MIN_STIMULUS_VALUE":             default_settings.device.min_stimulus_value,
+            "MAX_STIMULUS_VALUE":             default_settings.device.max_stimulus_value,
+            "MIN_GRAB_DURATION":              default_settings.logic.min_grab_duration,
+            "MIN_STRETCH_THRESHOLD":          default_settings.logic.min_stretch_threshold,
+            "VIBRATION_ON_STRETCH_THRESHOLD": default_settings.stretch_vibration.threshold,
+            "VIBRATION_HYSTERESIS_OFFSET":    default_settings.stretch_vibration.hysteresis_offset,
+            "GRAB_START_VIBRATION_INTENSITY": default_settings.grab_start_vibration.intensity,
+            "GRAB_START_VIBRATION_COUNT":     default_settings.grab_start_vibration.count,
+            "GRAB_START_VIBRATION_TON":       default_settings.grab_start_vibration.ton,
+            "GRAB_START_VIBRATION_TOFF":      default_settings.grab_start_vibration.toff,
+            "VIBRATION_ON_STRETCH_INTENSITY": default_settings.stretch_vibration.intensity,
+            "VIBRATION_ON_STRETCH_COUNT":     default_settings.stretch_vibration.count,
+            "VIBRATION_ON_STRETCH_TON":       default_settings.stretch_vibration.ton,
+            "VIBRATION_ON_STRETCH_TOFF":      default_settings.stretch_vibration.toff,
+            "OSC_SEND_INTERVAL":              default_settings.osc.send.interval,
+            "SEND_REALTIME_CHATBOX":          default_settings.osc.send.realtime_chatbox,
+            "BLE_CONNECT_TIMEOUT":            default_settings.ble.connect_timeout,
+            "BLE_RECONNECT_INTERVAL":         default_settings.ble.reconnect_interval,
+            "BLE_KEEPALIVE_INTERVAL":         default_settings.ble.keepalive_interval,
+            "BLE_BATTERY_REFRESH_INTERVAL":   default_settings.ble.battery_refresh_interval,
+            "OSC_LISTEN_PORT":                default_settings.osc.listen_port,
+            "OSC_SEND_PORT":                  default_settings.osc.send.port,
+            "LOG_STRETCH":                    default_settings.debug.log_stretch,
+            "LOG_IS_GRABBED":                 default_settings.debug.log_is_grabbed,
+            "LOG_ANGLE":                      default_settings.debug.log_angle,
+            "LOG_IS_POSED":                   default_settings.debug.log_is_posed,
+            "LOG_OSC_SEND":                   default_settings.debug.log_osc_send,
+            "LOG_ALL_OSC":                    default_settings.debug.log_all_osc,
         }
         for key, value in defaults.items():
             if key not in self.setting_widgets:
@@ -308,4 +315,6 @@ class SettingsTab(ttk.Frame):
                 info["var"].set(value)
             else:
                 info["widget"].delete(0, "end")
-                info["widget"].insert(0, str(value))
+                scale = info.get("display_scale", 1)
+                display_value = value * scale
+                info["widget"].insert(0, str(round(display_value, 10)))

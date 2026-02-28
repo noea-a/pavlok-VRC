@@ -63,3 +63,13 @@ def send_zap(intensity: int) -> bool:
     if USE_VIBRATION:
         return device.send_vibration(intensity)
     return device.send_zap(intensity)
+
+
+def send_raw_vibe(cmd: bytes) -> bool:
+    """BLE 生コマンドを送信する（テストタブ専用・BLE モードのみ有効）。"""
+    from devices.ble_device import BLEDevice
+    device = _get_device()
+    if isinstance(device, BLEDevice):
+        return device.send_raw_vibe(cmd)
+    logger.warning("send_raw_vibe: BLE モードでないため無視します")
+    return False

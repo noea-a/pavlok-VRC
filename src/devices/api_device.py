@@ -21,6 +21,10 @@ class APIDevice:
     # PavlokDevice インターフェース                                        #
     # ------------------------------------------------------------------ #
 
+    @property
+    def is_connected(self) -> bool:
+        return bool(self._api_key)
+
     def connect(self) -> bool:
         """API は常時接続不要。キーが設定されていれば True を返す。"""
         if not self._api_key:

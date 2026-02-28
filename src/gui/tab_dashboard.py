@@ -1,3 +1,4 @@
+import threading
 import tkinter as tk
 from tkinter import ttk
 
@@ -6,12 +7,45 @@ class DashboardTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         self.grab_state = None
+        self._device = None
         self._create_widgets()
 
     def set_grab_state(self, grab_state):
         self.grab_state = grab_state
 
+    def set_device(self, device):
+        self._device = device
+        self._refresh_ble_status()
+        # 初回起動時は自動で接続を試みる
+        self.after(500, self._on_connect)
+
     def _create_widgets(self):
+        # ---- BLE 接続パネル ----
+        ble_frame = ttk.LabelFrame(self, text="デバイス接続", padding=10)
+        ble_frame.pack(fill="x", padx=10, pady=(10, 0))
+
+        status_row = ttk.Frame(ble_frame)
+        status_row.pack(fill="x")
+        ttk.Label(status_row, text="接続状態:", width=12).pack(side="left")
+        self._ble_status_label = ttk.Label(status_row, text="未接続", foreground="gray")
+        self._ble_status_label.pack(side="left", padx=5)
+
+        batt_row = ttk.Frame(ble_frame)
+        batt_row.pack(fill="x", pady=(4, 0))
+        ttk.Label(batt_row, text="バッテリー:", width=12).pack(side="left")
+        self._batt_label = ttk.Label(batt_row, text="--", foreground="gray")
+        self._batt_label.pack(side="left", padx=5)
+
+        btn_row = ttk.Frame(ble_frame)
+        btn_row.pack(fill="x", pady=(6, 0))
+        self._connect_btn = ttk.Button(btn_row, text="接続", width=10, command=self._on_connect)
+        self._connect_btn.pack(side="left", padx=(0, 4))
+        self._disconnect_btn = ttk.Button(btn_row, text="切断", width=10, command=self._on_disconnect, state="disabled")
+        self._disconnect_btn.pack(side="left", padx=(0, 8))
+        self._batt_btn = ttk.Button(btn_row, text="残量更新", width=10, command=self._refresh_battery, state="disabled")
+        self._batt_btn.pack(side="left")
+
+        # ---- リアルタイム状態 ----
         frame = ttk.LabelFrame(self, text="リアルタイム状態", padding=10)
         frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -53,6 +87,75 @@ class DashboardTab(ttk.Frame):
         self.detail_text = tk.Text(detail_frame, height=5, width=60, state="disabled")
         self.detail_text.pack(fill="both", expand=True)
 
+
+    # ------------------------------------------------------------------ #
+    # BLE 接続制御                                                         #
+    # ------------------------------------------------------------------ #
+
+    def _refresh_ble_status(self):
+        if self._device is None:
+            return
+        connected = getattr(self._device, 'is_connected', False)
+        if connected:
+            self._ble_status_label.config(text="接続済み", foreground="green")
+            self._connect_btn.config(state="disabled")
+            self._disconnect_btn.config(state="normal")
+        else:
+            self._ble_status_label.config(text="未接続", foreground="gray")
+            self._connect_btn.config(state="normal")
+            self._disconnect_btn.config(state="disabled")
+
+    def _on_connect(self):
+        if self._device is None:
+            return
+        self._connect_btn.config(state="disabled")
+        self._ble_status_label.config(text="接続中...", foreground="orange")
+
+        def _do_connect():
+            ok = self._device.connect()
+            self.after(0, lambda: self._after_connect(ok))
+
+        threading.Thread(target=_do_connect, daemon=True).start()
+
+    def _after_connect(self, ok: bool):
+        if ok:
+            self._ble_status_label.config(text="接続済み", foreground="green")
+            self._connect_btn.config(state="disabled")
+            self._disconnect_btn.config(state="normal")
+            self._batt_btn.config(state="normal")
+            self._refresh_battery()
+        else:
+            self._ble_status_label.config(text="接続失敗", foreground="red")
+            self._connect_btn.config(state="normal")
+
+    def _on_disconnect(self):
+        if self._device is None:
+            return
+        self._disconnect_btn.config(state="disabled")
+        self._batt_btn.config(state="disabled")
+        self._device.disconnect()
+        self._ble_status_label.config(text="未接続", foreground="gray")
+        self._batt_label.config(text="--", foreground="gray")
+        self._connect_btn.config(state="normal")
+
+    def _refresh_battery(self):
+        if self._device is None:
+            return
+
+        def _do_read():
+            level = None
+            if hasattr(self._device, 'read_battery'):
+                level = self._device.read_battery()
+            self.after(0, lambda: self._update_battery(level))
+
+        threading.Thread(target=_do_read, daemon=True).start()
+
+    def _update_battery(self, level: int | None):
+        if level is None:
+            self._batt_label.config(text="取得失敗", foreground="red")
+        else:
+            color = "green" if level > 30 else "orange" if level > 15 else "red"
+            self._batt_label.config(text=f"{level}%", foreground=color)
 
     def update(self, data: dict):
         from datetime import datetime

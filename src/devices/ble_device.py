@@ -25,7 +25,8 @@ class _PavlokBLE:
     - 競合防止のため再接続処理は asyncio.Lock で排他制御
     """
 
-    _C_API_UUID = "00001004-0000-1000-8000-00805f9b34fb"  # check_api UUID
+    _C_API_UUID  = "00007999-0000-1000-8000-00805f9b34fb"  # c_api UUID
+    _C_BATT_UUID = "00002a19-0000-1000-8000-00805f9b34fb"  # 標準 BLE Battery Level
 
     def __init__(self, mac: str, zap_uuid: str, vibe_uuid: str,
                  connect_timeout: float, reconnect_interval: float,
@@ -142,6 +143,17 @@ class _PavlokBLE:
     # 送信                                                                 #
     # ------------------------------------------------------------------ #
 
+    async def read_battery(self) -> int | None:
+        """バッテリー残量を 0-100 で返す。取得失敗時は None。"""
+        if not self.is_connected:
+            return None
+        try:
+            data = await self._client.read_gatt_char(self._C_BATT_UUID)
+            return data[0]
+        except Exception as e:
+            logger.debug(f"BLE battery read failed: {e}")
+            return None
+
     async def send_zap(self, intensity: int) -> bool:
         cmd = bytes([0x89, intensity])
         return await self._write_with_retry(self._zap_uuid, cmd, "Zap", intensity)
@@ -239,6 +251,10 @@ class BLEDevice:
     # PavlokDevice インターフェース                                        #
     # ------------------------------------------------------------------ #
 
+    @property
+    def is_connected(self) -> bool:
+        return self._ble is not None and self._ble.is_connected
+
     def connect(self) -> bool:
         if not self._mac:
             logger.error("BLE_DEVICE_MAC が設定されていません（.env を確認してください）")
@@ -293,6 +309,16 @@ class BLEDevice:
         except Exception as e:
             logger.error(f"BLEDevice.send_vibration error: {e}")
             return False
+
+    def read_battery(self) -> int | None:
+        """バッテリー残量を 0-100 で返す。取得失敗時は None。"""
+        if not self._ble or not self._loop:
+            return None
+        try:
+            return self._run_coro(self._ble.read_battery(), timeout=5)
+        except Exception as e:
+            logger.debug(f"BLEDevice.read_battery error: {e}")
+            return None
 
     def send_raw_vibe(self, cmd: bytes) -> bool:
         """テスト用：生バイト列を c_vibe キャラクタリスティックに送信する。"""

@@ -81,6 +81,10 @@ class PavlokGUI(tk.Tk):
         if hasattr(self, 'tab_test'):
             self.tab_test.set_grab_state(value)
 
+    def set_device(self, device):
+        if hasattr(self, 'tab_dashboard'):
+            self.tab_dashboard.set_device(device)
+
     def poll_data(self):
         try:
             while True:

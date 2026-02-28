@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import threading
-from bleak import BleakClient, BleakError
+from bleak import BleakClient, BleakError, BleakScanner
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ class _PavlokBLE:
         self._reconnect_lock = asyncio.Lock()
         self._monitor_task: asyncio.Task | None = None
         self._keepalive_task: asyncio.Task | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None  # BLEDevice から設定
 
     @property
     def is_connected(self) -> bool:
@@ -60,7 +61,21 @@ class _PavlokBLE:
             self._client = None
 
         try:
-            self._client = BleakClient(self._mac, timeout=self._connect_timeout)
+            # Windows の WinRT バックエンドは MAC 直指定で "Device not found" になりやすいため
+            # 先にスキャンしてデバイスを発見してから接続する
+            scan_timeout = min(self._connect_timeout * 0.6, 20.0)
+            logger.info(f"BLE scanning for {self._mac} (timeout={scan_timeout:.0f}s)...")
+            device = await BleakScanner.find_device_by_address(self._mac, timeout=scan_timeout)
+            if device is None:
+                logger.error(f"BLE scan: device not found: {self._mac}")
+                return False
+
+            logger.info(f"BLE device found: {device.name}, connecting...")
+            self._client = BleakClient(
+                device,
+                timeout=self._connect_timeout,
+                disconnected_callback=self._on_disconnected,
+            )
             await self._client.connect()
             await asyncio.sleep(_CONNECT_SETTLE_DELAY)
 
@@ -81,6 +96,22 @@ class _PavlokBLE:
             logger.error(f"BLE connect failed: {e}")
             self._client = None
             return False
+
+    def _on_disconnected(self, client: BleakClient) -> None:
+        """BLE 切断検知コールバック（WinRT スレッドから呼ばれる）。
+        ポーリング待ちなしに即座に再接続をスケジュールする。
+        """
+        if self._should_stop:
+            return
+        logger.warning("BLE unexpected disconnect detected (callback)")
+        loop = self._loop
+        if loop and not loop.is_closed():
+            asyncio.run_coroutine_threadsafe(self._reconnect_from_callback(), loop)
+
+    async def _reconnect_from_callback(self) -> None:
+        async with self._reconnect_lock:
+            if not self.is_connected and not self._should_stop:
+                await self._do_reconnect("disconnect-cb")
 
     async def start_monitor(self) -> None:
         self._monitor_task = asyncio.ensure_future(self._monitor_loop())
@@ -269,9 +300,10 @@ class BLEDevice:
             reconnect_interval=self._reconnect_interval,
             keepalive_interval=self._keepalive_interval,
         )
+        self._ble._loop = self._loop  # 切断コールバックで参照するループを渡す
 
         try:
-            ok = self._run_coro(self._ble.connect(), timeout=self._connect_timeout + 3)
+            ok = self._run_coro(self._ble.connect(), timeout=self._connect_timeout + 5)
         except Exception as e:
             logger.error(f"BLEDevice.connect error: {e}")
             return False

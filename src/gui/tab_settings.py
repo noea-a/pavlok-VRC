@@ -91,7 +91,7 @@ class SettingsTab(ttk.Frame):
         zap_frame = ttk.LabelFrame(parent, text="Zap 強度・閾値", padding=8)
         zap_frame.pack(fill="x", pady=(6, 4))
         self._add_spinbox_items(zap_frame, [
-            ("MIN_GRAB_DURATION", "掴み判定時間（秒）", "float", 0.8, 0.1, 10.0, 1, "これ未満の掴み時間は処理しません"),
+            ("MIN_GRAB_DURATION", "掴み判定時間（秒）", "float", 0.8, 0.1, 10.0, 1, "これ未満の掴み時間では処理しません"),
             ("MIN_STRETCH_THRESHOLD", "最小閾値", "float", 0.03, 0.0, 1.0, 1, "これ未満の引っ張り度は処理しません"),
             ("VIBRATION_HYSTERESIS_OFFSET", "高出力警告のヒステリシス（％）", "float", 15, 0, 100, 100, "チャタリング防止"),
         ])

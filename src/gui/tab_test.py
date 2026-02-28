@@ -138,8 +138,7 @@ class TestTab(ttk.Frame):
 
         def _send():
             try:
-                from ble_controller import ble_send_raw_vibe
-                ok = ble_send_raw_vibe(cmd)
+                ok = stimulus_controller.send_raw_vibe(cmd)
                 result = "OK" if ok else "FAILED"
             except Exception as e:
                 result = f"ERROR: {e}"

@@ -54,13 +54,14 @@
 ### Phase 5: GrabState の責務分離
 **目的**: 状態機械から副作用（送信・記録・GUI更新）を切り出す
 
-- [ ] **5-1** `src/state_machine.py` を作成：純粋な状態遷移ロジックのみ
-  - `on_grab_start`, `on_grab_end`, `on_stretch_update` イベントを発行するコールバックリストを持つ
-  - GUI キュー・OSC 送信・ZapRecorder への直接依存をなくす
-- [ ] **5-2** `src/handlers/stimulus.py` を作成：Pavlok 刺激送信ハンドラ
-- [ ] **5-3** `src/handlers/chatbox.py` を作成：Chatbox 送信ハンドラ（スロットル付き）
-- [ ] **5-4** `src/handlers/recorder.py` を作成：Zap 記録ハンドラ
-- [ ] **5-5** `main.py` でイベントにハンドラを接続する形に変更
+- [x] **5-1** `src/state_machine.py` を作成：純粋な状態遷移ロジックのみ
+  - subscribe_* でコールバック登録するイベント駆動設計
+  - tab_test.py / tab_stats.py との互換インターフェースを維持
+- [x] **5-2** `src/handlers/stimulus.py` を作成：Pavlok 刺激送信ハンドラ
+- [x] **5-3** `src/handlers/chatbox.py` を作成：Chatbox 送信ハンドラ（スロットル付き）
+- [x] **5-4** `src/handlers/recorder.py` を作成：Zap 記録ハンドラ
+- [x] **5-5** `main.py` をハンドラ組み立て・接続のみの薄いエントリポイントに変更
+- [x] **5-bonus** `src/handlers/gui_updater.py` を作成：GUIUpdater（status_queue への状態プッシュ）
 
 ---
 

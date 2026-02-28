@@ -65,6 +65,7 @@ class PavlokGUI(tk.Tk):
         self.tab_test = TestTab(self.notebook)
         self.notebook.add(self.tab_test, text="テスト")
 
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.poll_data()
 
@@ -108,6 +109,16 @@ class PavlokGUI(tk.Tk):
 
         if self.is_running:
             self.after(1000, self.poll_data)
+
+    def _on_tab_changed(self, _event):
+        selected = self.notebook.select()
+        scrollable = {str(self.tab_settings): self.tab_settings,
+                      str(self.tab_test): self.tab_test}
+        # 先に全て解除してから、アクティブなタブだけ有効化
+        for tab in scrollable.values():
+            tab.disable_scroll()
+        if selected in scrollable:
+            scrollable[selected].enable_scroll()
 
     def show_about(self):
         messagebox.showinfo("バージョン情報", f"VRChat Pavlok Connector v{__version__}")

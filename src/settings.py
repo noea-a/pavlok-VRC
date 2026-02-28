@@ -114,6 +114,7 @@ class BleSettings:
     connect_timeout: float = 30.0
     reconnect_interval: float = 5.0
     keepalive_interval: float = 5.5
+    battery_refresh_interval: float = 180.0
     service_uuid: str = "156e5000-a300-4fea-897b-86f698d74461"
     zap_uuid: str = "00001003-0000-1000-8000-00805f9b34fb"
     vibe_uuid: str = "00001001-0000-1000-8000-00805f9b34fb"

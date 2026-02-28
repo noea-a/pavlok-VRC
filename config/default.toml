@@ -64,6 +64,7 @@ max_stimulus_value = 70
 connect_timeout = 30.0
 reconnect_interval = 5.0
 keepalive_interval = 5.5
+battery_refresh_interval = 180.0  # バッテリー残量自動更新間隔（秒）、0 で無効
 service_uuid = "156e5000-a300-4fea-897b-86f698d74461"
 zap_uuid = "00001003-0000-1000-8000-00805f9b34fb"
 vibe_uuid = "00001001-0000-1000-8000-00805f9b34fb"

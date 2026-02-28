@@ -124,15 +124,33 @@ class DashboardTab(ttk.Frame):
             self._disconnect_btn.config(state="normal")
             self._batt_btn.config(state="normal")
             self._refresh_battery()
+            self._schedule_battery_refresh()
         else:
             self._ble_status_label.config(text="接続失敗", foreground="red")
             self._connect_btn.config(state="normal")
+
+    def _schedule_battery_refresh(self):
+        import settings as s_mod
+        interval_sec = s_mod.settings.ble.battery_refresh_interval
+        if interval_sec <= 0:
+            return
+        interval_ms = int(interval_sec * 1000)
+        self._batt_timer = self.after(interval_ms, self._periodic_battery_refresh)
+
+    def _periodic_battery_refresh(self):
+        if self._device is None or not getattr(self._device, 'is_connected', False):
+            return
+        self._refresh_battery()
+        self._schedule_battery_refresh()
 
     def _on_disconnect(self):
         if self._device is None:
             return
         self._disconnect_btn.config(state="disabled")
         self._batt_btn.config(state="disabled")
+        if hasattr(self, '_batt_timer'):
+            self.after_cancel(self._batt_timer)
+            self._batt_timer = None
         self._device.disconnect()
         self._ble_status_label.config(text="未接続", foreground="gray")
         self._batt_label.config(text="--", foreground="gray")

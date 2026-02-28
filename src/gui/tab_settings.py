@@ -60,7 +60,7 @@ class SettingsTab(ttk.Frame):
         self._add_spinbox_items(basic_frame, [
             ("MIN_STIMULUS_VALUE",             "Zap の最小値（％）",               "int",   15,  0,   100, 1, ""),
             ("MAX_STIMULUS_VALUE",             "Zap の最大値（％）",               "int",   70,  0,   100, 1, ""),
-            ("VIBRATION_ON_STRETCH_THRESHOLD", "警告バイブ（％）",           "float", 70, 0, 100, 100, "高出力の場合に警告します"),
+            ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（％）",           "float", 70, 0, 100, 100, "高出力の場合にバイブで警告します"),
         ])
 
         # ===== 詳細設定 トグル =====
@@ -86,7 +86,7 @@ class SettingsTab(ttk.Frame):
         self._add_spinbox_items(zap_frame, [
             ("MIN_GRAB_DURATION",              "掴み判定時間（秒）",         "float", 0.8, 0.1, 10.0, 1, "これ未満の掴み時間は処理しません"),
             ("MIN_STRETCH_THRESHOLD",          "最小閾値",                   "float", 0.03, 0.0, 1.0, 1, "これ未満の引っ張り度は処理しません"),
-            ("VIBRATION_HYSTERESIS_OFFSET",    "警告バイブのヒステリシス（％）",     "float", 15, 0, 100, 100, "チャタリング防止"),
+            ("VIBRATION_HYSTERESIS_OFFSET",    "高出力警告のヒステリシス（％）",     "float", 15, 0, 100, 100, "チャタリング防止"),
         ])
 
         # --- 掴み開始バイブ ---

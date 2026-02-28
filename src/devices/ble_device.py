@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import threading
+import time
 from bleak import BleakClient, BleakError, BleakScanner
 
 logger = logging.getLogger(__name__)
@@ -263,6 +264,9 @@ class BLEDevice:
         self._thread: threading.Thread | None = None
 
     def _start_loop(self) -> None:
+        """イベントループを起動する。既に動作中なら何もしない（冪等）。"""
+        if self._loop is not None and not self._loop.is_closed():
+            return
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_loop, args=(self._loop,), daemon=True)
         self._thread.start()
@@ -292,26 +296,40 @@ class BLEDevice:
             return False
 
         self._start_loop()
-        self._ble = _PavlokBLE(
-            mac=self._mac,
-            zap_uuid=self._zap_uuid,
-            vibe_uuid=self._vibe_uuid,
-            connect_timeout=self._connect_timeout,
-            reconnect_interval=self._reconnect_interval,
-            keepalive_interval=self._keepalive_interval,
-        )
-        self._ble._loop = self._loop  # 切断コールバックで参照するループを渡す
 
-        try:
-            ok = self._run_coro(self._ble.connect(), timeout=self._connect_timeout + 5)
-        except Exception as e:
-            logger.error(f"BLEDevice.connect error: {e}")
-            return False
+        # _PavlokBLE インスタンスは初回のみ生成（ループと同じライフサイクル）
+        if self._ble is None:
+            self._ble = _PavlokBLE(
+                mac=self._mac,
+                zap_uuid=self._zap_uuid,
+                vibe_uuid=self._vibe_uuid,
+                connect_timeout=self._connect_timeout,
+                reconnect_interval=self._reconnect_interval,
+                keepalive_interval=self._keepalive_interval,
+            )
+            self._ble._loop = self._loop
 
-        if ok:
-            asyncio.run_coroutine_threadsafe(self._ble.start_monitor(), self._loop)
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            logger.info(f"BLE 接続試行 {attempt}/{max_attempts}...")
+            try:
+                ok = self._run_coro(self._ble.connect(), timeout=self._connect_timeout + 5)
+            except Exception as e:
+                logger.error(f"BLEDevice.connect error (attempt {attempt}): {e}")
+                ok = False
 
-        return ok
+            if ok:
+                # モニタータスクが未起動 or 終了済みの場合のみ起動
+                if self._ble._monitor_task is None or self._ble._monitor_task.done():
+                    asyncio.run_coroutine_threadsafe(self._ble.start_monitor(), self._loop)
+                return True
+
+            if attempt < max_attempts:
+                logger.info(f"BLE 接続失敗、{self._reconnect_interval:.0f}秒後に再試行...")
+                time.sleep(self._reconnect_interval)
+
+        logger.error(f"BLE 接続失敗（{max_attempts}回試行）")
+        return False
 
     def disconnect(self) -> None:
         if self._ble and self._loop:

@@ -105,7 +105,7 @@ class SettingsTab(ttk.Frame):
         ])
 
         # --- 警告バイブ ---
-        sv_frame = ttk.LabelFrame(parent, text="警告バイブ（引っ張り度 超過時）", padding=8)
+        sv_frame = ttk.LabelFrame(parent, text="高出力の警告バイブ", padding=8)
         sv_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(sv_frame, [
             ("VIBRATION_ON_STRETCH_INTENSITY", "強度（％）", "int", 80, 0, 100, 1, ""),
@@ -143,12 +143,12 @@ class SettingsTab(ttk.Frame):
                             row=row, desc="実際に実行された Zap 値を表示")
 
         # --- BLE ---
-        ble_frame = ttk.LabelFrame(parent, text="BLE 接続パラメータ", padding=8)
+        ble_frame = ttk.LabelFrame(parent, text="BLE 接続", padding=8)
         ble_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(ble_frame, [
             ("BLE_CONNECT_TIMEOUT", "接続タイムアウト（秒）", "float", 10.0, 1.0, 60.0, 1, "接続試行を諦めるまでの時間"),
             ("BLE_RECONNECT_INTERVAL", "再接続間隔（秒）", "float", 5.0, 1.0, 30.0, 1, "切断後に再接続を試みる周期"),
-            ("BLE_KEEPALIVE_INTERVAL", "接続維持間隔（秒）", "float", 5.5, 1.0, 60.0, 1, "接続維持信号の送信周期"),
+            ("BLE_KEEPALIVE_INTERVAL", "接続維持間隔（秒）", "float", 5.5, 1.0, 60.0, 1, "接続維持信号の送信周期（6秒未満を推奨）"),
             ("BLE_BATTERY_REFRESH_INTERVAL", "バッテリー更新間隔（秒）", "float", 180.0, 0.0, 600.0, 1, ""),
         ])
 

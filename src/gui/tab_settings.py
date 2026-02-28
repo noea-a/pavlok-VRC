@@ -8,6 +8,8 @@ import settings as settings_module
 
 
 class SettingsTab(ttk.Frame):
+    _LABEL_WIDTH = 28  # スピンボックス・チェックボックスのラベル幅（統一）
+
     def __init__(self, parent):
         super().__init__(parent)
         self._adv_visible = False
@@ -156,7 +158,7 @@ class SettingsTab(ttk.Frame):
             key, label, value_type, default, min_val, max_val = item[:6]
             display_scale = item[6] if len(item) > 6 else 1
             desc = item[7] if len(item) > 7 else ""
-            ttk.Label(parent, text=label, width=28).grid(row=i, column=0, sticky="w", pady=3)
+            ttk.Label(parent, text=label, width=self._LABEL_WIDTH).grid(row=i, column=0, sticky="w", pady=3)
             inc = 1 if value_type == "int" else 0.1
             spinbox = ttk.Spinbox(parent, from_=min_val, to=max_val, width=8, increment=inc)
             spinbox.insert(0, str(default))
@@ -171,7 +173,7 @@ class SettingsTab(ttk.Frame):
             }
 
     def _add_bool_item(self, parent, key, label, default, row, desc=""):
-        ttk.Label(parent, text=label, width=24).grid(row=row, column=0, sticky="w", pady=3)
+        ttk.Label(parent, text=label, width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
         var = tk.BooleanVar(value=default)
         cb = ttk.Checkbutton(parent, variable=var)
         cb.grid(row=row, column=1, sticky="w", padx=5, pady=3)

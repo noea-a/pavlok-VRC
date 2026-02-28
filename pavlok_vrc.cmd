@@ -40,6 +40,6 @@ echo.
 REM メイン実行
 python src\main.py
 
-REM 終了時にポーズを表示
+REM 終了時に 5 秒待機してから自動で閉じる
 echo.
-pause
+timeout /t 5 /nobreak

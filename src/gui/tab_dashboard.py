@@ -49,17 +49,17 @@ class DashboardTab(ttk.Frame):
         frame = ttk.LabelFrame(self, text="リアルタイム状態", padding=10)
         frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Grab 状態
+        # 掴み状態
         grab_frame = ttk.Frame(frame)
         grab_frame.pack(fill="x", pady=10)
-        ttk.Label(grab_frame, text="Grab 状態:", width=15).pack(side="left")
+        ttk.Label(grab_frame, text="掴み状態:", width=15).pack(side="left")
         self.grab_status_label = ttk.Label(grab_frame, text="False", foreground="blue")
         self.grab_status_label.pack(side="left")
 
-        # Stretch 値
+        # 引っ張り度
         stretch_frame = ttk.Frame(frame)
         stretch_frame.pack(fill="x", pady=10)
-        ttk.Label(stretch_frame, text="Stretch 値:", width=15).pack(side="left")
+        ttk.Label(stretch_frame, text="引っ張り度:", width=15).pack(side="left")
         self.stretch_slider = ttk.Scale(stretch_frame, from_=0.0, to=1.0, orient="horizontal", state="disabled")
         self.stretch_slider.pack(side="left", fill="x", expand=True, padx=5)
         self.stretch_label = ttk.Label(stretch_frame, text="0.000", width=6)

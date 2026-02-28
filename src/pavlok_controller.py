@@ -1,190 +1,102 @@
-import requests
+"""
+pavlok_controller.py
+
+デバイスへのディスパッチャ と 強度計算関数。
+デバイスの初期化は main.py が行い、initialize_device() で登録する。
+"""
+
 import logging
-from config import (
-    PAVLOK_API_URL, PAVLOK_API_KEY,
-    MIN_STRETCH_THRESHOLD, MIN_STRETCH_PLATEAU, USE_VIBRATION,
-    MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
-    MIN_STRETCH_FOR_CALC, MAX_STRETCH_FOR_CALC,
-    NONLINEAR_SWITCH_POSITION_PERCENT, INTENSITY_AT_SWITCH_PERCENT,
-    CONTROL_MODE
-)
+from devices.base import PavlokDevice
 
 logger = logging.getLogger(__name__)
 
+# モジュールレベルのデバイス参照（main.py が initialize_device() で設定）
+_device: PavlokDevice | None = None
+
+
+def initialize_device(device: PavlokDevice) -> None:
+    """使用するデバイスを登録する。アプリ起動時に1回だけ呼ぶ。"""
+    global _device
+    _device = device
+
+
+def _get_device() -> PavlokDevice:
+    if _device is None:
+        raise RuntimeError("デバイスが未初期化です。initialize_device() を先に呼んでください。")
+    return _device
+
+
+# ===== 強度計算 =====
 
 def normalize_intensity_for_display(stimulus_value: int) -> int:
-    """
-    Pavlok刺激値（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）を表示値に変換
-
-    MIN_STIMULUS_VALUE → MIN_STIMULUS_VALUE表示、MAX_STIMULUS_VALUE → 100表示
-
-    Args:
-        stimulus_value: MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE の値
-
-    Returns:
-        表示用の値（MIN_STIMULUS_VALUE～100）
-    """
+    """Pavlok 内部値（MIN〜MAX）を表示用パーセント（MIN〜100）に変換する。"""
+    from config import MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE
     if stimulus_value <= MIN_STIMULUS_VALUE:
         return MIN_STIMULUS_VALUE
     if stimulus_value >= MAX_STIMULUS_VALUE:
         return 100
-
-    # 線形変換：MIN_STIMULUS_VALUE→MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE→100
-    normalized = MIN_STIMULUS_VALUE + (stimulus_value - MIN_STIMULUS_VALUE) / (MAX_STIMULUS_VALUE - MIN_STIMULUS_VALUE) * (100 - MIN_STIMULUS_VALUE)
+    normalized = MIN_STIMULUS_VALUE + (
+        (stimulus_value - MIN_STIMULUS_VALUE)
+        / (MAX_STIMULUS_VALUE - MIN_STIMULUS_VALUE)
+        * (100 - MIN_STIMULUS_VALUE)
+    )
     return int(round(normalized))
 
 
 def calculate_zap_intensity(stretch_value: float) -> int:
-    """
-    Stretch値（0.0～1.0）を刺激強度に変換（傾きの異なる2本直線）
+    """Stretch 値（0.0〜1.0）を刺激強度（内部値）に変換する（折れ線グラフ）。"""
+    from config import (
+        MIN_STRETCH_THRESHOLD, MIN_STRETCH_PLATEAU,
+        MIN_STRETCH_FOR_CALC, MAX_STRETCH_FOR_CALC,
+        NONLINEAR_SWITCH_POSITION_PERCENT, INTENSITY_AT_SWITCH_PERCENT,
+        MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE,
+    )
 
-    仕様：
-    - Stretch < MIN_STRETCH_THRESHOLD: 強度0（刺激なし）
-    - Stretch MIN_STRETCH_THRESHOLD～MIN_STRETCH_PLATEAU: MIN_STIMULUS_VALUE で固定
-    - Stretch MIN_STRETCH_PLATEAU～MAX_STRETCH_FOR_CALC: 2本の直線で計算
-      - 第1段階：MIN_STRETCH_PLATEAU から切り替え地点まで
-      - 第2段階：切り替え地点から MAX_STRETCH_FOR_CALC まで
-    - Stretch >= MAX_STRETCH_FOR_CALC: MAX_STIMULUS_VALUE
-    """
-    # MIN_STRETCH_THRESHOLD未満は刺激なし
     if stretch_value < MIN_STRETCH_THRESHOLD:
         return 0
-
-    # MIN_STRETCH_PLATEAU以下は MIN_STIMULUS_VALUE で固定
     if stretch_value <= MIN_STRETCH_PLATEAU:
         return MIN_STIMULUS_VALUE
-
-    # 入力範囲クランプ
     if stretch_value >= MAX_STRETCH_FOR_CALC:
         return MAX_STIMULUS_VALUE
 
-    # 切り替え地点の Stretch 値を計算（MIN～MAX の何%地点か）
-    switch_stretch = MIN_STRETCH_PLATEAU + (NONLINEAR_SWITCH_POSITION_PERCENT / 100.0) * (MAX_STRETCH_FOR_CALC - MIN_STRETCH_PLATEAU)
+    switch_stretch = MIN_STRETCH_PLATEAU + (
+        NONLINEAR_SWITCH_POSITION_PERCENT / 100.0
+    ) * (MAX_STRETCH_FOR_CALC - MIN_STRETCH_PLATEAU)
 
-    # その地点での強度を計算（MIN～MAX の何%か）
-    intensity_at_switch = MIN_STIMULUS_VALUE + (INTENSITY_AT_SWITCH_PERCENT / 100.0) * (MAX_STIMULUS_VALUE - MIN_STIMULUS_VALUE)
+    intensity_at_switch = MIN_STIMULUS_VALUE + (
+        INTENSITY_AT_SWITCH_PERCENT / 100.0
+    ) * (MAX_STIMULUS_VALUE - MIN_STIMULUS_VALUE)
 
-    # 傾きの異なる2本の直線で計算
     if stretch_value <= switch_stretch:
-        # 線形1：MIN_STRETCH_PLATEAU～switch_stretch を MIN_STIMULUS_VALUE～intensity_at_switch に
-        range_stretch_1 = switch_stretch - MIN_STRETCH_PLATEAU
-        range_stimulus_1 = intensity_at_switch - MIN_STIMULUS_VALUE
-        intensity = MIN_STIMULUS_VALUE + (stretch_value - MIN_STRETCH_PLATEAU) / range_stretch_1 * range_stimulus_1
+        t = (stretch_value - MIN_STRETCH_PLATEAU) / (switch_stretch - MIN_STRETCH_PLATEAU)
+        intensity = MIN_STIMULUS_VALUE + t * (intensity_at_switch - MIN_STIMULUS_VALUE)
     else:
-        # 線形2：switch_stretch～MAX_STRETCH_FOR_CALC を intensity_at_switch～MAX_STIMULUS_VALUE に
-        range_stretch_2 = MAX_STRETCH_FOR_CALC - switch_stretch
-        range_stimulus_2 = MAX_STIMULUS_VALUE - intensity_at_switch
-        intensity = intensity_at_switch + (stretch_value - switch_stretch) / range_stretch_2 * range_stimulus_2
+        t = (stretch_value - switch_stretch) / (MAX_STRETCH_FOR_CALC - switch_stretch)
+        intensity = intensity_at_switch + t * (MAX_STIMULUS_VALUE - intensity_at_switch)
 
-    intensity = max(MIN_STIMULUS_VALUE, min(MAX_STIMULUS_VALUE, intensity))
-    return int(intensity)
+    return int(max(MIN_STIMULUS_VALUE, min(MAX_STIMULUS_VALUE, intensity)))
 
 
-def _send_api_vibration(intensity: int) -> bool:
-    """API経由でバイブレーションを送信する内部関数。"""
-    stimulus_type = "vibe"
+# ===== デバイスへのディスパッチ =====
 
-    payload = {
-        "stimulus": {
-            "stimulusType": stimulus_type,
-            "stimulusValue": intensity
-        }
-    }
-    headers = {
-        "Authorization": f"Bearer {PAVLOK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    try:
-        response = requests.post(PAVLOK_API_URL, json=payload, headers=headers, timeout=5)
-        if response.status_code == 200:
-            logger.info(f"Vibration sent successfully! Intensity: {intensity}")
-            return True
-        else:
-            logger.error(f"Pavlok API error: {response.status_code} - {response.text}")
-            return False
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to send {stimulus_type}: {e}")
-        return False
-
-
-def _send_api_zap(intensity: int) -> bool:
-    """API経由でZap（またはVibe）を送信する内部関数。"""
-    stimulus_type = "vibe" if USE_VIBRATION else "zap"
-
-    payload = {
-        "stimulus": {
-            "stimulusType": stimulus_type,
-            "stimulusValue": intensity
-        }
-    }
-    headers = {
-        "Authorization": f"Bearer {PAVLOK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    try:
-        response = requests.post(PAVLOK_API_URL, json=payload, headers=headers, timeout=5)
-        if response.status_code == 200:
-            logger.info(f"{stimulus_type.capitalize()} sent successfully! Intensity: {intensity}")
-            return True
-        else:
-            logger.error(f"Pavlok API error: {response.status_code} - {response.text}")
-            return False
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to send {stimulus_type}: {e}")
-        return False
-
-
-def send_vibration(intensity: int, count: int = 1, ton: int = 22, toff: int = 22) -> bool:
-    """
-    バイブレーションを送信する（API / BLE を CONTROL_MODE で切り替え）
-
-    Args:
-        intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
-        count: 反復回数（BLE のみ有効、1～127）
-        ton: ON 時間（BLE のみ有効、0～255）
-        toff: OFF 時間（BLE のみ有効、0～255）
-
-    Returns:
-        成功した場合True、失敗した場合False
-    """
+def send_vibration(intensity: int, count: int = 1, ton: int = 10, toff: int = 10) -> bool:
+    """バイブレーションを送信する。"""
+    from config import MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE
     if intensity < MIN_STIMULUS_VALUE:
         logger.warning(f"Intensity too low ({intensity}), skipping vibration")
         return False
-    if intensity > MAX_STIMULUS_VALUE:
-        logger.warning(f"Intensity capped from {intensity} to {MAX_STIMULUS_VALUE}")
-        intensity = MAX_STIMULUS_VALUE
-
-    if CONTROL_MODE == "ble":
-        from ble_controller import ble_send_vibration
-        return ble_send_vibration(intensity, count, ton, toff)
-    else:
-        return _send_api_vibration(intensity)
+    intensity = min(intensity, MAX_STIMULUS_VALUE)
+    return _get_device().send_vibration(intensity, count, ton, toff)
 
 
 def send_zap(intensity: int) -> bool:
-    """
-    Zapを送信する（API / BLE を CONTROL_MODE で切り替え、USE_VIBRATION も尊重）
-
-    Args:
-        intensity: 強度（MIN_STIMULUS_VALUE～MAX_STIMULUS_VALUE）
-
-    Returns:
-        成功した場合True、失敗した場合False
-    """
+    """Zap（または USE_VIBRATION=True の場合はバイブ）を送信する。"""
+    from config import MIN_STIMULUS_VALUE, MAX_STIMULUS_VALUE, USE_VIBRATION
     if intensity < MIN_STIMULUS_VALUE:
         logger.warning(f"Intensity too low ({intensity}), skipping zap")
         return False
-    if intensity > MAX_STIMULUS_VALUE:
-        logger.warning(f"Intensity capped from {intensity} to {MAX_STIMULUS_VALUE}")
-        intensity = MAX_STIMULUS_VALUE
-
-    if CONTROL_MODE == "ble":
-        from ble_controller import ble_send_zap, ble_send_vibration
-        if USE_VIBRATION:
-            return ble_send_vibration(intensity)
-        else:
-            return ble_send_zap(intensity)
-    else:
-        return _send_api_zap(intensity)
+    intensity = min(intensity, MAX_STIMULUS_VALUE)
+    device = _get_device()
+    if USE_VIBRATION:
+        return device.send_vibration(intensity)
+    return device.send_zap(intensity)

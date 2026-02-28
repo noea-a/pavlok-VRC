@@ -10,14 +10,14 @@
 ### Phase 1: 設定管理の安全化（最優先）
 **目的**: GUI から `config.py` を直接書き換えるリスクをなくす
 
-- [ ] **1-1** `config/default.toml` を作成し、現在の `config.py` の全設定値を移す
-- [ ] **1-2** `src/settings.py` を作成：TOML を読み込み、dataclass で型安全に保持
+- [x] **1-1** `config/default.toml` を作成し、現在の `config.py` の全設定値を移す
+- [x] **1-2** `src/settings.py` を作成：TOML を読み込み、dataclass で型安全に保持
   - 秘密情報（API KEY, MAC アドレス）は引き続き `.env` から読む
   - `user.toml`（上書き用）が存在すれば `default.toml` にマージして読む
-- [ ] **1-3** `src/config.py` を `settings.py` への薄いラッパーに変更（既存コードの import を壊さない）
-- [ ] **1-4** `gui/tab_settings.py` の保存処理を `user.toml` 書き込みに変更
+- [x] **1-3** `src/config.py` を `settings.py` への薄いラッパーに変更（既存コードの import を壊さない）
+- [x] **1-4** `gui/tab_settings.py` の保存処理を `user.toml` 書き込みに変更
   - `ast` による config.py 書き換えを廃止
-- [ ] **1-5** `.gitignore` に `config/user.toml` を追加
+- [x] **1-5** `.gitignore` に `config/user.toml` を追加
 
 ---
 

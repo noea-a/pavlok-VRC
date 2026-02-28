@@ -118,14 +118,29 @@ class SettingsTab(ttk.Frame):
         osc_frame = ttk.LabelFrame(parent, text="OSC", padding=8)
         osc_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(osc_frame, [
-            ("OSC_SEND_INTERVAL", "Chatbox 更新間隔（秒）", "float", 1.5, 0.0, 10.0, 1, "極端に短くするとスパムとして扱われる可能性があります"),
             ("OSC_LISTEN_PORT", "受信ポート", "int", 9001, 1024, 65535, 1, "VRChat からの OSC 受信ポート"),
             ("OSC_SEND_PORT", "送信ポート", "int", 9000, 1024, 65535, 1, "VRChat への OSC 送信ポート"),
         ])
-        self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "Grab中の表示", True,
-                            row=3, desc="掴み中に Zap 値をリアルタイム更新")
-        self._add_bool_item(osc_frame, "SEND_FINAL_CHATBOX", "掴み終了時の表示", True,
-                            row=4, desc="掴み終了時に最終 Zap 値を表示")
+        # Zap予測値関連
+        row = 2
+        self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "掴み中の Zap 予測値", True,
+                            row=row, desc="Zap の予測値をリアルタイム表示")
+        row += 1
+        # 更新間隔
+        ttk.Label(osc_frame, text="Chatbox 更新間隔（秒）", width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
+        spinbox = ttk.Spinbox(osc_frame, from_=0.0, to=10.0, width=8, increment=0.1)
+        spinbox.insert(0, "1.5")
+        spinbox.grid(row=row, column=1, sticky="w", padx=5, pady=3)
+        ttk.Label(osc_frame, text="極端に短くするとスパムとして扱われる可能性があります", foreground="gray").grid(
+            row=row, column=2, sticky="w", padx=(0, 8), pady=3
+        )
+        self.setting_widgets["OSC_SEND_INTERVAL"] = {
+            "widget": spinbox, "type": "float", "label": "Chatbox 更新間隔（秒）",
+            "display_scale": 1,
+        }
+        row += 1
+        self._add_bool_item(osc_frame, "SEND_FINAL_CHATBOX", "Zap 実行値", True,
+                            row=row, desc="実際に実行された Zap 値を表示")
 
         # --- BLE ---
         ble_frame = ttk.LabelFrame(parent, text="BLE 接続パラメータ", padding=8)

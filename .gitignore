@@ -42,6 +42,9 @@ Thumbs.db
 # Project specific
 *.log
 
+# ユーザー固有の設定上書き（デバイスMAC・強度など個人設定）
+config/user.toml
+
 # Claude Code local settings
 .claude/
 

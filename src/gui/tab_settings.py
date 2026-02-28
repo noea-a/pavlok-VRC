@@ -1,8 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import ast
-import importlib
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import settings as settings_module
 
 
 class SettingsTab(ttk.Frame):
@@ -36,7 +38,9 @@ class SettingsTab(ttk.Frame):
         ]
 
         for setting_key, label_text, value_type, default_val, min_val, max_val in setting_items:
-            ttk.Label(settings_frame, text=label_text, width=25).grid(row=len(self.setting_widgets), column=0, sticky="w", pady=5)
+            ttk.Label(settings_frame, text=label_text, width=25).grid(
+                row=len(self.setting_widgets), column=0, sticky="w", pady=5
+            )
             if value_type == "int":
                 spinbox = ttk.Spinbox(settings_frame, from_=min_val, to=max_val, width=10)
             else:
@@ -44,21 +48,23 @@ class SettingsTab(ttk.Frame):
             spinbox.insert(0, str(default_val))
             spinbox.grid(row=len(self.setting_widgets), column=1, sticky="ew", padx=5, pady=5)
             self.setting_widgets[setting_key] = {
-                'widget': spinbox,
-                'type': value_type,
-                'label': label_text
+                "widget": spinbox,
+                "type": value_type,
+                "label": label_text,
             }
 
         # リアルタイム Chatbox 送信（Checkbox）
-        ttk.Label(settings_frame, text="リアルタイム Chatbox 送信", width=25).grid(row=len(self.setting_widgets), column=0, sticky="w", pady=5)
+        ttk.Label(settings_frame, text="リアルタイム Chatbox 送信", width=25).grid(
+            row=len(self.setting_widgets), column=0, sticky="w", pady=5
+        )
         self.send_realtime_var = tk.BooleanVar(value=False)
         checkbox = ttk.Checkbutton(settings_frame, variable=self.send_realtime_var)
         checkbox.grid(row=len(self.setting_widgets), column=1, sticky="w", padx=5, pady=5)
         self.setting_widgets["SEND_REALTIME_CHATBOX"] = {
-            'widget': checkbox,
-            'type': 'bool',
-            'label': 'リアルタイム Chatbox 送信',
-            'var': self.send_realtime_var
+            "widget": checkbox,
+            "type": "bool",
+            "label": "リアルタイム Chatbox 送信",
+            "var": self.send_realtime_var,
         }
 
         button_frame = ttk.Frame(settings_frame)
@@ -67,71 +73,72 @@ class SettingsTab(ttk.Frame):
         ttk.Button(button_frame, text="キャンセル", command=self.load_settings).pack(side="left", padx=5)
         ttk.Button(button_frame, text="デフォルト", command=self.reset_settings).pack(side="left", padx=5)
 
-    def load_settings(self):
-        try:
-            config_path = Path(__file__).parent.parent / "config.py"
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_content = f.read()
+    # --- 設定値を画面に反映 ---
 
+    def _current_values(self) -> dict:
+        """settings モジュールから現在値を CONFIG_KEY → value の dict で返す"""
+        s = settings_module.settings
+        return {
+            "MIN_STIMULUS_VALUE":             s.device.min_stimulus_value,
+            "MAX_STIMULUS_VALUE":             s.device.max_stimulus_value,
+            "MIN_GRAB_DURATION":              s.logic.min_grab_duration,
+            "MIN_STRETCH_THRESHOLD":          s.logic.min_stretch_threshold,
+            "VIBRATION_ON_STRETCH_THRESHOLD": s.stretch_vibration.threshold,
+            "VIBRATION_HYSTERESIS_OFFSET":    s.stretch_vibration.hysteresis_offset,
+            "GRAB_START_VIBRATION_INTENSITY": s.grab_start_vibration.intensity,
+            "GRAB_START_VIBRATION_COUNT":     s.grab_start_vibration.count,
+            "GRAB_START_VIBRATION_TON":       s.grab_start_vibration.ton,
+            "GRAB_START_VIBRATION_TOFF":      s.grab_start_vibration.toff,
+            "VIBRATION_ON_STRETCH_INTENSITY": s.stretch_vibration.intensity,
+            "VIBRATION_ON_STRETCH_COUNT":     s.stretch_vibration.count,
+            "VIBRATION_ON_STRETCH_TON":       s.stretch_vibration.ton,
+            "VIBRATION_ON_STRETCH_TOFF":      s.stretch_vibration.toff,
+            "OSC_SEND_INTERVAL":              s.osc.send.interval,
+            "SEND_REALTIME_CHATBOX":          s.osc.send.realtime_chatbox,
+        }
+
+    def load_settings(self):
+        """設定を読み込んでウィジェットに反映する"""
+        try:
+            values = self._current_values()
             for key, widget_info in self.setting_widgets.items():
-                for line in config_content.split('\n'):
-                    if line.strip().startswith(key + " ="):
-                        value_part = line.split('=', 1)[1].strip()
-                        if '#' in value_part:
-                            value_part = value_part.split('#')[0].strip()
-                        try:
-                            value = ast.literal_eval(value_part)
-                            if widget_info['type'] == 'bool':
-                                widget_info['var'].set(value)
-                            else:
-                                widget_info['widget'].delete(0, "end")
-                                widget_info['widget'].insert(0, str(value))
-                        except:
-                            pass
-                        break
+                value = values.get(key)
+                if value is None:
+                    continue
+                if widget_info["type"] == "bool":
+                    widget_info["var"].set(bool(value))
+                else:
+                    widget_info["widget"].delete(0, "end")
+                    widget_info["widget"].insert(0, str(value))
         except Exception as e:
             messagebox.showerror("エラー", f"設定の読み込みに失敗しました: {e}")
 
     def save_settings(self):
+        """入力値を user.toml に保存する"""
+        changed = {}
+        for key, widget_info in self.setting_widgets.items():
+            if widget_info["type"] == "bool":
+                changed[key] = widget_info["var"].get()
+            else:
+                value_str = widget_info["widget"].get()
+                try:
+                    if widget_info["type"] == "int":
+                        changed[key] = int(value_str)
+                    else:
+                        changed[key] = float(value_str)
+                except ValueError:
+                    messagebox.showerror("エラー", f"{widget_info['label']} の値が無効です: {value_str!r}")
+                    return
+
         try:
-            config_path = Path(__file__).parent.parent / "config.py"
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_lines = f.readlines()
-
-            for key, widget_info in self.setting_widgets.items():
-                if widget_info['type'] == 'bool':
-                    value = widget_info['var'].get()
-                else:
-                    value_str = widget_info['widget'].get()
-                    try:
-                        if widget_info['type'] == 'int':
-                            value = int(value_str)
-                        else:
-                            value = float(value_str)
-                    except ValueError:
-                        messagebox.showerror("エラー", f"{key} の値が無効です")
-                        return
-
-                for i, line in enumerate(config_lines):
-                    if line.strip().startswith(key + " =") or line.strip().startswith(key + "="):
-                        comment_part = ""
-                        if '#' in line:
-                            comment_part = "  #" + line.split('#', 1)[1].rstrip('\n')
-                        config_lines[i] = f"{key} = {value}{comment_part}\n"
-                        break
-
-            with open(config_path, 'w', encoding='utf-8') as f:
-                f.writelines(config_lines)
-
-            import config as config_module
-            importlib.reload(config_module)
-
+            settings_module.save_user_settings(changed)
             messagebox.showinfo("成功", "設定を保存しました。\n次の操作から反映されます。")
             self.load_settings()
         except Exception as e:
             messagebox.showerror("エラー", f"設定の保存に失敗しました: {e}")
 
     def reset_settings(self):
+        """デフォルト値（default.toml の値）をウィジェットに反映する（保存はしない）"""
         defaults = {
             "MIN_STIMULUS_VALUE": 15,
             "MAX_STIMULUS_VALUE": 70,
@@ -140,13 +147,22 @@ class SettingsTab(ttk.Frame):
             "VIBRATION_ON_STRETCH_THRESHOLD": 0.7,
             "VIBRATION_HYSTERESIS_OFFSET": 0.15,
             "GRAB_START_VIBRATION_INTENSITY": 20,
+            "GRAB_START_VIBRATION_COUNT": 1,
+            "GRAB_START_VIBRATION_TON": 10,
+            "GRAB_START_VIBRATION_TOFF": 10,
+            "VIBRATION_ON_STRETCH_INTENSITY": 80,
+            "VIBRATION_ON_STRETCH_COUNT": 2,
+            "VIBRATION_ON_STRETCH_TON": 6,
+            "VIBRATION_ON_STRETCH_TOFF": 12,
             "OSC_SEND_INTERVAL": 1.5,
             "SEND_REALTIME_CHATBOX": True,
         }
         for key, value in defaults.items():
-            if key in self.setting_widgets:
-                if self.setting_widgets[key]['type'] == 'bool':
-                    self.setting_widgets[key]['var'].set(value)
-                else:
-                    self.setting_widgets[key]['widget'].delete(0, "end")
-                    self.setting_widgets[key]['widget'].insert(0, str(value))
+            if key not in self.setting_widgets:
+                continue
+            info = self.setting_widgets[key]
+            if info["type"] == "bool":
+                info["var"].set(value)
+            else:
+                info["widget"].delete(0, "end")
+                info["widget"].insert(0, str(value))

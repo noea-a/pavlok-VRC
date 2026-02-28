@@ -1,0 +1,74 @@
+# Pavlok VRC デフォルト設定
+# このファイルは git 管理します。ユーザー固有の上書きは user.toml に記述してください。
+
+# ===== OSC 受信設定 =====
+[osc]
+listen_port = 9001
+stretch_param = "/avatar/parameters/ShockPB_Stretch"
+is_grabbed_param = "/avatar/parameters/ShockPB_IsGrabbed"
+angle_param = "/avatar/parameters/ShockPB_Angle"
+is_posed_param = "/avatar/parameters/ShockPB_IsPosed"
+
+# ===== OSC 送信設定（VRChat Chatbox） =====
+[osc.send]
+ip = "127.0.0.1"
+port = 9000
+chatbox_param = "/chatbox/input"
+interval = 1.5
+realtime_chatbox = true
+
+# ===== デバッグログ設定 =====
+[debug]
+log_stretch = true
+log_is_grabbed = true
+log_angle = false
+log_is_posed = false
+log_all_osc = false
+log_osc_send = true
+
+# ===== ロジック設定 =====
+[logic]
+min_grab_duration = 0.8
+min_stretch_threshold = 0.03
+min_stretch_plateau = 0.12
+min_stretch_for_calc = 0.0
+max_stretch_for_calc = 0.8
+nonlinear_switch_position_percent = 50
+intensity_at_switch_percent = 20
+
+# ===== Grab開始バイブ設定 =====
+[grab_start_vibration]
+intensity = 20
+count = 1
+ton = 10
+toff = 10
+
+# ===== Stretch超過バイブ設定 =====
+[stretch_vibration]
+intensity = 80
+count = 2
+ton = 6
+toff = 12
+threshold = 0.7
+hysteresis_offset = 0.15
+
+# ===== デバイス共通設定 =====
+[device]
+control_mode = "ble"   # "api" または "ble"
+use_vibration = false  # false=Zap, true=Vibration
+min_stimulus_value = 15
+max_stimulus_value = 70
+
+# ===== BLE設定 =====
+[ble]
+connect_timeout = 30.0
+reconnect_interval = 5.0
+keepalive_interval = 5.5
+service_uuid = "156e5000-a300-4fea-897b-86f698d74461"
+zap_uuid = "00001003-0000-1000-8000-00805f9b34fb"
+vibe_uuid = "00001001-0000-1000-8000-00805f9b34fb"
+beep_uuid = "00001002-0000-1000-8000-00805f9b34fb"
+
+# ===== Pavlok API設定 =====
+[api]
+url = "https://api.pavlok.com/api/v5/stimulus/send"

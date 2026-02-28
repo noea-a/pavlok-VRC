@@ -35,7 +35,7 @@ BLE_DEVICE_MAC=XX:XX:XX:XX:XX:XX
 PAVLOK_API_KEY=your_api_key_here
 ```
 
-`src/config.py` の `CONTROL_MODE` を使用するモードに合わせて変更してください。
+`config/default.toml` の `[device] control_mode` を使用するモードに合わせて変更してください。
 
 ### 3. VRChat の設定
 
@@ -51,11 +51,6 @@ VRChat の OSC 受信を有効化してください（設定 → OSC → 有効�
 **コマンドラインから:**
 ```bash
 python src/main.py
-```
-
-**GUI なし（ヘッドレス）:**
-```bash
-python src/main.py --no-gui
 ```
 
 ---

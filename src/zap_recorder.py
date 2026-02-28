@@ -3,19 +3,22 @@
 import json
 import os
 from datetime import datetime
+from pathlib import Path
+
+_DEFAULT_FILEPATH = Path(__file__).parent.parent / "data" / "zap_records.json"
 
 
 class ZapRecorder:
     """Zap 実行を JSON ファイルに記録・統計管理するクラス"""
 
-    def __init__(self, filepath="data/zap_records.json"):
+    def __init__(self, filepath=None):
         """
         初期化
 
         Args:
             filepath (str): JSON ファイルの保存パス
         """
-        self.filepath = filepath
+        self.filepath = Path(filepath) if filepath else _DEFAULT_FILEPATH
         self.session_records = []  # メモリ内セッション記録
 
         # ディレクトリを自動作成

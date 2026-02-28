@@ -407,6 +407,6 @@ class DashboardTab(ttk.Frame):
         self._ble_status_label.config(text="未設定", foreground="orange")
         self._connect_btn.config(state="normal")
         self._disconnect_btn.config(state="disabled")
-        self._batt_btn.config(state="disabled")
+
         self._batt_label.config(text="--", foreground="gray")
 

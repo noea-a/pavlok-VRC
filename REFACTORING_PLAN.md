@@ -45,9 +45,9 @@
 ### Phase 4: OSC 送受信の分離
 **目的**: `OSCListener` が送信も担っている責務の混在を解消する
 
-- [ ] **4-1** `src/osc/receiver.py` を作成：受信のみに特化（現 `OSCListener` のリスナー部分）
-- [ ] **4-2** `src/osc/sender.py` を作成：送信のみに特化（`send_parameter`, `send_chatbox_message`）
-- [ ] **4-3** `src/osc_listener.py` を削除し、参照箇所を更新
+- [x] **4-1** `src/osc/receiver.py` を作成：受信のみに特化
+- [x] **4-2** `src/osc/sender.py` を作成：送信のみに特化
+- [x] **4-3** `src/osc_listener.py` を後方互換ラッパーに変更、`main.py` の参照を新クラスに更新
 
 ---
 

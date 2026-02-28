@@ -58,8 +58,8 @@ class SettingsTab(ttk.Frame):
         basic_frame.pack(fill="x", pady=(0, 6))
 
         self._add_spinbox_items(basic_frame, [
-            ("MIN_STIMULUS_VALUE",             "Zap の最小値",               "int",   15,  0,   100, 1, ""),
-            ("MAX_STIMULUS_VALUE",             "Zap の最大値",               "int",   70,  0,   100, 1, ""),
+            ("MIN_STIMULUS_VALUE",             "Zap の最小値（％）",               "int",   15,  0,   100, 1, ""),
+            ("MAX_STIMULUS_VALUE",             "Zap の最大値（％）",               "int",   70,  0,   100, 1, ""),
             ("VIBRATION_ON_STRETCH_THRESHOLD", "警告バイブ（％）",           "float", 70, 0, 100, 100, "高出力の場合に警告します"),
         ])
 
@@ -93,20 +93,20 @@ class SettingsTab(ttk.Frame):
         gs_frame = ttk.LabelFrame(parent, text="掴み開始バイブ", padding=8)
         gs_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(gs_frame, [
-            ("GRAB_START_VIBRATION_INTENSITY", "強度",       "int", 20, 0, 100, 1, ""),
-            ("GRAB_START_VIBRATION_TON",       "継続時間",   "int", 10, 0, 255, 1, ""),
+            ("GRAB_START_VIBRATION_INTENSITY", "強度（％）",       "int", 20, 0, 100, 1, ""),
+            ("GRAB_START_VIBRATION_TON",       "継続時間（ms）",   "int", 10, 0, 255, 1, ""),
             ("GRAB_START_VIBRATION_COUNT",     "繰り返し",   "int", 1, 1, 127, 1, ""),
-            ("GRAB_START_VIBRATION_TOFF",      "インターバル", "int", 10, 0, 255, 1, ""),
+            ("GRAB_START_VIBRATION_TOFF",      "インターバル（ms）", "int", 10, 0, 255, 1, ""),
         ])
 
         # --- 警告バイブ ---
         sv_frame = ttk.LabelFrame(parent, text="警告バイブ（引っ張り度 超過時）", padding=8)
         sv_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(sv_frame, [
-            ("VIBRATION_ON_STRETCH_INTENSITY", "強度",       "int", 80, 0, 100, 1, ""),
-            ("VIBRATION_ON_STRETCH_TON",       "継続時間",   "int", 6, 0, 255, 1, ""),
+            ("VIBRATION_ON_STRETCH_INTENSITY", "強度（％）",       "int", 80, 0, 100, 1, ""),
+            ("VIBRATION_ON_STRETCH_TON",       "継続時間（ms）",   "int", 6, 0, 255, 1, ""),
             ("VIBRATION_ON_STRETCH_COUNT",     "繰り返し",   "int", 2, 1, 127, 1, ""),
-            ("VIBRATION_ON_STRETCH_TOFF",      "インターバル", "int", 12, 0, 255, 1, ""),
+            ("VIBRATION_ON_STRETCH_TOFF",      "インターバル（ms）", "int", 12, 0, 255, 1, ""),
         ])
 
         # --- OSC ---
@@ -137,9 +137,9 @@ class SettingsTab(ttk.Frame):
             ("LOG_STRETCH",    "Stretch",   True,  "引っ張り度"),
             ("LOG_IS_GRABBED", "IsGrabbed", True,  "掴み状態"),
             ("LOG_ANGLE",      "Angle",     False, "角度"),
-            ("LOG_IS_POSED",   "IsPosed",   False, "固定"),
+            ("LOG_IS_POSED",   "IsPosed",   False, "固定状態"),
             ("LOG_OSC_SEND",   "OSC 送信",  True,  "OSC 送信内容"),
-            ("LOG_ALL_OSC",    "全 OSC",    False, "受信した全 OSC メッセージ"),
+            ("LOG_ALL_OSC",    "OSC 受信（全て）",    False, "OSC 受信内容（大量に出るので注意）"),
         ]
         for i, (key, label, default, desc) in enumerate(log_items):
             self._add_bool_item(log_frame, key, label, default, row=i, desc=desc)

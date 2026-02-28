@@ -22,7 +22,7 @@ class ZapRecorder:
         self.session_records = []  # メモリ内セッション記録
 
         # ディレクトリを自動作成
-        directory = os.path.dirname(filepath)
+        directory = os.path.dirname(self.filepath)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
 

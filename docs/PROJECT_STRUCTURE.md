@@ -56,7 +56,6 @@ pavlok_VRC/
 │   └── PROJECT_STRUCTURE.md       # このファイル
 │
 ├── CLAUDE.md                      # 開発ガイド（Claude Code 向け）
-├── REFACTORING_PLAN.md            # リファクタリング計画・進捗
 ├── README.md                      # プロジェクト概要
 ├── requirements.txt               # Python 依存パッケージ
 ├── pavlok_vrc.cmd                 # Windows 起動スクリプト

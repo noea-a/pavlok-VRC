@@ -8,6 +8,7 @@ from osc.sender import OSCSender
 from state_machine import GrabStateMachine
 from handlers import StimulusHandler, ChatboxHandler, RecorderHandler, GUIUpdater
 from zap_recorder import ZapRecorder
+from gui import QueueHandler
 
 # ===== ログ設定 =====
 logging.basicConfig(
@@ -15,19 +16,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-class QueueHandler(logging.Handler):
-    """ログメッセージをキューに送信するカスタムハンドラ。"""
-    def __init__(self, queue):
-        super().__init__()
-        self.queue = queue
-
-    def emit(self, record):
-        try:
-            self.queue.put((record.levelname, self.format(record)))
-        except Exception:
-            pass
 
 
 def main():

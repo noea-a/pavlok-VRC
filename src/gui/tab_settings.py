@@ -1,9 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 import settings as settings_module
 
 

@@ -43,7 +43,9 @@ class DashboardTab(ttk.Frame):
         self._disconnect_btn = ttk.Button(btn_row, text="切断", width=10, command=self._on_disconnect, state="disabled")
         self._disconnect_btn.pack(side="left", padx=(0, 8))
         self._batt_btn = ttk.Button(btn_row, text="残量更新", width=10, command=self._refresh_battery, state="disabled")
-        self._batt_btn.pack(side="left")
+        self._batt_btn.pack(side="left", padx=(0, 8))
+        self._scan_btn = ttk.Button(btn_row, text="デバイス探索", width=10, command=self._on_scan_devices)
+        self._scan_btn.pack(side="left")
 
         # ---- リアルタイム状態 ----
         frame = ttk.LabelFrame(self, text="リアルタイム状態", padding=10)
@@ -212,4 +214,61 @@ class DashboardTab(ttk.Frame):
             self.detail_text.config(state="disabled")
         except Exception as e:
             print(f"Error updating dashboard: {e}")
+
+    def _on_scan_devices(self):
+        """BLE デバイスをスキャンして見つかったデバイスを選択"""
+        import asyncio
+        from bleak import BleakScanner
+        from tkinter import simpledialog, messagebox
+
+        def scan():
+            try:
+                # 非同期スキャンを実行
+                devices = asyncio.run(BleakScanner.discover())
+                if not devices:
+                    messagebox.showwarning("スキャン結果", "デバイスが見つかりません")
+                    return
+
+                # デバイス一覧を表示
+                device_list = [f"{d.name or 'Unknown'} ({d.address})" for d in devices]
+                selected = simpledialog.askstring(
+                    "デバイス選択",
+                    "見つかったデバイスから選択してください（MAC アドレス）:\n\n" + "\n".join(device_list)
+                )
+
+                if selected:
+                    # MAC アドレス部分を抽出
+                    mac = selected.strip().split("(")[-1].rstrip(")")
+                    # .env に書き込む
+                    self._save_mac_to_env(mac)
+                    messagebox.showinfo("成功", f"デバイス {mac} を設定しました。\nアプリを再起動してください。")
+            except Exception as e:
+                messagebox.showerror("エラー", f"スキャン失敗: {e}")
+
+        threading.Thread(target=scan, daemon=True).start()
+
+    def _save_mac_to_env(self, mac: str):
+        """MAC アドレスを .env に保存"""
+        from pathlib import Path
+        env_path = Path(__file__).parent.parent.parent / ".env"
+
+        if env_path.exists():
+            with open(env_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        else:
+            lines = []
+
+        # BLE_DEVICE_MAC 行を探すか、新規追加
+        found = False
+        for i, line in enumerate(lines):
+            if line.startswith("BLE_DEVICE_MAC="):
+                lines[i] = f"BLE_DEVICE_MAC={mac}\n"
+                found = True
+                break
+
+        if not found:
+            lines.append(f"BLE_DEVICE_MAC={mac}\n")
+
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
 

@@ -33,21 +33,27 @@ class SettingsTab(ttk.Frame):
 
         self._inner.bind("<Configure>", self._on_inner_configure)
         self._canvas.bind("<Configure>", self._on_canvas_configure)
-        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         self.setting_widgets = {}
         self._build_content(self._inner)
 
-    def _on_inner_configure(self, _event):
-        self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+    def _on_inner_configure(self, event):
+        self._canvas.configure(scrollregion=(0, 0, event.width, event.height))
 
     def _on_canvas_configure(self, event):
         self._canvas.itemconfig(self._inner_id, width=event.width)
 
+    def enable_scroll(self):
+        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def disable_scroll(self):
+        self._canvas.unbind_all("<MouseWheel>")
+
     def _on_mousewheel(self, event):
-        # スピンボックス上ではウィンドウスクロール無視、Box外では普通にスクロール
         if isinstance(event.widget, ttk.Spinbox):
             return "break"
+        if self._canvas.yview() == (0.0, 1.0):
+            return
         self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     # ------------------------------------------------------------------ #

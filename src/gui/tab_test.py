@@ -13,9 +13,35 @@ class TestTab(ttk.Frame):
         self.grab_state = None
         self.test_stretch_var = tk.DoubleVar(value=0.0)
         self._ble_counter = 0
+
+        # スクロール可能なコンテナ
+        scrollbar = ttk.Scrollbar(self, orient="vertical")
+        scrollbar.pack(side="right", fill="y")
+        self._canvas = tk.Canvas(self, yscrollcommand=scrollbar.set, highlightthickness=0)
+        self._canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=self._canvas.yview)
+        self._inner = ttk.Frame(self._canvas)
+        self._inner_id = self._canvas.create_window((0, 0), window=self._inner, anchor="nw")
+        self._inner.bind("<Configure>", lambda e: self._canvas.configure(
+            scrollregion=(0, 0, e.width, e.height)))
+        self._canvas.bind("<Configure>", lambda e: self._canvas.itemconfig(self._inner_id, width=e.width))
+
         self._create_unit_test_panel()
         self._create_ble_raw_panel()
         self._create_grab_sim_panel()
+
+    def enable_scroll(self):
+        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def disable_scroll(self):
+        self._canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        if isinstance(event.widget, ttk.Spinbox):
+            return "break"
+        if self._canvas.yview() == (0.0, 1.0):
+            return
+        self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def set_grab_state(self, grab_state):
         self.grab_state = grab_state
@@ -25,12 +51,12 @@ class TestTab(ttk.Frame):
     # ------------------------------------------------------------------ #
 
     def _create_unit_test_panel(self):
-        frame = ttk.LabelFrame(self, text="単体テスト（掴みなし）", padding=10)
+        frame = ttk.LabelFrame(self._inner, text="単体テスト", padding=10)
         frame.pack(fill="x", padx=10, pady=(10, 5))
 
         vib_frame = ttk.Frame(frame)
         vib_frame.pack(fill="x", pady=4)
-        ttk.Label(vib_frame, text="Vibration:", width=15).pack(side="left")
+        ttk.Label(vib_frame, text="バイブ:", width=15).pack(side="left")
         ttk.Button(vib_frame, text="弱", width=8,
                    command=lambda: self._send_vibration("weak")).pack(side="left", padx=2)
         ttk.Button(vib_frame, text="中", width=8,
@@ -80,7 +106,7 @@ class TestTab(ttk.Frame):
     # ------------------------------------------------------------------ #
 
     def _create_ble_raw_panel(self):
-        frame = ttk.LabelFrame(self, text="BLE 生コマンド（Vibration）", padding=10)
+        frame = ttk.LabelFrame(self._inner, text="BLE 生コマンド（バイブ）", padding=10)
         frame.pack(fill="x", padx=10, pady=(5, 5))
 
         # パラメータ説明ラベル
@@ -91,11 +117,11 @@ class TestTab(ttk.Frame):
         grid.pack(fill="x")
 
         fields = [
-            ("counter",   "カウンタ (0-127)",    1,   0, 127),
-            ("mode",      "モード",              2,   0, 255),
+            ("counter",   "実行回数 (0-127)",    1,   0, 127),
+            ("mode",      "モード（不明）",              2,   0, 255),
             ("intensity", "強度 (0-100)",        50,  0, 100),
-            ("ton",       "ton",                22,  0, 255),
-            ("toff",      "toff",               22,  0, 255),
+            ("ton",       "実行時間",                22,  0, 255),
+            ("toff",      "インターバル",               22,  0, 255),
         ]
 
         self._raw_vars = {}
@@ -141,7 +167,7 @@ class TestTab(ttk.Frame):
     # ------------------------------------------------------------------ #
 
     def _create_grab_sim_panel(self):
-        frame = ttk.LabelFrame(self, text="掴みシミュレーション", padding=10)
+        frame = ttk.LabelFrame(self._inner, text="掴みシミュレーション", padding=10)
         frame.pack(fill="x", padx=10, pady=(5, 10))
 
         grab_frame = ttk.Frame(frame)
@@ -164,11 +190,11 @@ class TestTab(ttk.Frame):
         quick_frame = ttk.Frame(frame)
         quick_frame.pack(fill="x", pady=4)
         ttk.Label(quick_frame, text="クイックテスト:", width=15).pack(side="left")
-        ttk.Button(quick_frame, text="弱い掴み", width=12,
+        ttk.Button(quick_frame, text="弱", width=8,
                    command=lambda: self.test_grab_sequence(0.3, 1.5)).pack(side="left", padx=2)
-        ttk.Button(quick_frame, text="中くらい", width=12,
+        ttk.Button(quick_frame, text="中", width=8,
                    command=lambda: self.test_grab_sequence(0.6, 2.0)).pack(side="left", padx=2)
-        ttk.Button(quick_frame, text="強い掴み", width=12,
+        ttk.Button(quick_frame, text="強", width=8,
                    command=lambda: self.test_grab_sequence(0.9, 2.5)).pack(side="left", padx=2)
 
     def test_grab_start(self):

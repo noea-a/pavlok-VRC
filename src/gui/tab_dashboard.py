@@ -2,6 +2,17 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
+_EXAMPLE_MAC = "XX:XX:XX:XX:XX:XX"
+
+
+def _get_valid_mac() -> str:
+    """有効な MAC アドレスを返す。未設定またはサンプル値の場合は空文字。"""
+    import os
+    mac = os.getenv("BLE_DEVICE_MAC", "").strip()
+    if mac == _EXAMPLE_MAC:
+        return ""
+    return mac
+
 
 class DashboardTab(ttk.Frame):
     def __init__(self, parent):
@@ -16,8 +27,11 @@ class DashboardTab(ttk.Frame):
     def set_device(self, device):
         self._device = device
         self._refresh_ble_status()
-        # 初回起動時は自動で接続を試みる
-        self.after(500, self._on_connect)
+        # MAC が設定されている場合のみ自動接続を試みる
+        if _get_valid_mac():
+            self.after(500, self._on_connect)
+        else:
+            self._ble_status_label.config(text="未設定", foreground="orange")
 
     def _create_widgets(self):
         # ---- BLE 接続パネル ----
@@ -42,9 +56,7 @@ class DashboardTab(ttk.Frame):
         self._connect_btn.pack(side="left", padx=(0, 4))
         self._disconnect_btn = ttk.Button(btn_row, text="切断", width=10, command=self._on_disconnect, state="disabled")
         self._disconnect_btn.pack(side="left", padx=(0, 8))
-        self._batt_btn = ttk.Button(btn_row, text="残量更新", width=10, command=self._refresh_battery, state="disabled")
-        self._batt_btn.pack(side="left", padx=(0, 8))
-        self._delete_btn = ttk.Button(btn_row, text="アドレス削除", width=10, command=self._on_delete_mac)
+        self._delete_btn = ttk.Button(btn_row, text="削除", width=10, command=self._on_delete_mac)
         self._delete_btn.pack(side="left")
 
         # ---- リアルタイム状態 ----
@@ -108,9 +120,8 @@ class DashboardTab(ttk.Frame):
             self._disconnect_btn.config(state="disabled")
 
     def _on_connect(self):
-        import os
         # MAC アドレスが未設定の場合はスキャン
-        if not os.getenv("BLE_DEVICE_MAC") or not os.getenv("BLE_DEVICE_MAC").strip():
+        if not _get_valid_mac():
             self._on_scan_devices()
             return
 
@@ -125,38 +136,39 @@ class DashboardTab(ttk.Frame):
 
         threading.Thread(target=_do_connect, daemon=True).start()
 
+    _BATT_RETRY_MS = 5_000  # 取得失敗時のリトライ間隔
+
     def _after_connect(self, ok: bool):
         if ok:
             self._ble_status_label.config(text="接続済み", foreground="green")
             self._connect_btn.config(state="disabled")
             self._disconnect_btn.config(state="normal")
-            self._batt_btn.config(state="normal")
             self._refresh_battery()
-            self._schedule_battery_refresh()
         else:
             self._ble_status_label.config(text="接続失敗", foreground="red")
             self._connect_btn.config(state="normal")
 
-    def _schedule_battery_refresh(self):
+    def _schedule_battery_refresh(self, failed: bool = False):
         import settings as s_mod
-        interval_sec = s_mod.settings.ble.battery_refresh_interval
-        if interval_sec <= 0:
-            return
-        interval_ms = int(interval_sec * 1000)
+        if failed:
+            interval_ms = self._BATT_RETRY_MS
+        else:
+            interval_sec = s_mod.settings.ble.battery_refresh_interval
+            if interval_sec <= 0:
+                return
+            interval_ms = int(interval_sec * 1000)
         self._batt_timer = self.after(interval_ms, self._periodic_battery_refresh)
 
     def _periodic_battery_refresh(self):
         if self._device is None or not getattr(self._device, 'is_connected', False):
             return
         self._refresh_battery()
-        self._schedule_battery_refresh()
 
     def _on_disconnect(self):
         if self._device is None:
             return
         self._disconnect_btn.config(state="disabled")
-        self._batt_btn.config(state="disabled")
-        if hasattr(self, '_batt_timer'):
+        if hasattr(self, '_batt_timer') and self._batt_timer:
             self.after_cancel(self._batt_timer)
             self._batt_timer = None
         self._device.disconnect()
@@ -179,9 +191,11 @@ class DashboardTab(ttk.Frame):
     def _update_battery(self, level: int | None):
         if level is None:
             self._batt_label.config(text="取得失敗", foreground="red")
+            self._schedule_battery_refresh(failed=True)
         else:
             color = "green" if level > 30 else "orange" if level > 15 else "red"
             self._batt_label.config(text=f"{level}%", foreground=color)
+            self._schedule_battery_refresh(failed=False)
 
     def update(self, data: dict):
         from datetime import datetime
@@ -225,33 +239,117 @@ class DashboardTab(ttk.Frame):
         """BLE デバイスをスキャンして見つかったデバイスを選択"""
         import asyncio
         from bleak import BleakScanner
-        from tkinter import simpledialog, messagebox
+
+        self._ble_status_label.config(text="スキャン中...", foreground="orange")
+        self._connect_btn.config(state="disabled")
 
         def scan():
             try:
-                # 非同期スキャンを実行
-                devices = asyncio.run(BleakScanner.discover())
-                if not devices:
-                    messagebox.showwarning("スキャン結果", "デバイスが見つかりません")
-                    return
-
-                # デバイス一覧を表示
-                device_list = [f"{d.name or 'Unknown'} ({d.address})" for d in devices]
-                selected = simpledialog.askstring(
-                    "デバイス選択",
-                    "見つかったデバイスから選択してください（MAC アドレス）:\n\n" + "\n".join(device_list)
-                )
-
-                if selected:
-                    # MAC アドレス部分を抽出
-                    mac = selected.strip().split("(")[-1].rstrip(")")
-                    # .env に書き込む
-                    self._save_mac_to_env(mac)
-                    messagebox.showinfo("成功", f"デバイス {mac} を設定しました。\nアプリを再起動してください。")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    devices = loop.run_until_complete(BleakScanner.discover(timeout=5.0))
+                finally:
+                    loop.close()
+                self.after(0, lambda: self._show_scan_results(devices))
             except Exception as e:
-                messagebox.showerror("エラー", f"スキャン失敗: {e}")
+                self.after(0, lambda: self._on_scan_error(str(e)))
 
         threading.Thread(target=scan, daemon=True).start()
+
+    def _on_scan_error(self, msg: str):
+        from tkinter import messagebox
+        self._ble_status_label.config(text="スキャン失敗", foreground="red")
+        self._connect_btn.config(state="normal")
+        messagebox.showerror("エラー", f"スキャン失敗: {msg}")
+
+    def _show_scan_results(self, devices):
+        """スキャン結果をリストボックスで表示（メインスレッド）"""
+        from tkinter import messagebox, Toplevel, Listbox, Scrollbar, Button, Label, END, SINGLE
+
+        self._ble_status_label.config(text="未接続", foreground="gray")
+        self._connect_btn.config(state="normal")
+
+        if not devices:
+            messagebox.showwarning("スキャン結果", "BLE デバイスが見つかりませんでした。\nPavlok の電源が入っているか確認してください。")
+            return
+
+        # モーダルダイアログを作成
+        dialog = Toplevel(self)
+        dialog.title("BLE デバイス選択")
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        Label(dialog, text="接続するデバイスを選択してください:", padx=10, pady=8).pack()
+
+        frame = ttk.Frame(dialog, padding=5)
+        frame.pack(fill="both", expand=True)
+
+        scrollbar = Scrollbar(frame)
+        scrollbar.pack(side="right", fill="y")
+
+        listbox = Listbox(frame, yscrollcommand=scrollbar.set, width=50, height=min(len(devices), 10),
+                          selectmode=SINGLE)
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=listbox.yview)
+
+        for d in devices:
+            listbox.insert(END, f"{d.name or 'Unknown'}  |  {d.address}")
+
+        btn_frame = ttk.Frame(dialog, padding=5)
+        btn_frame.pack(fill="x")
+
+        selected_mac = [None]
+
+        def on_select():
+            idx = listbox.curselection()
+            if not idx:
+                messagebox.showwarning("未選択", "デバイスを選択してください", parent=dialog)
+                return
+            line = listbox.get(idx[0])
+            mac = line.split("|")[-1].strip()
+            selected_mac[0] = mac
+            dialog.destroy()
+
+        Button(btn_frame, text="選択", width=10, command=on_select).pack(side="left", padx=5, pady=5)
+        Button(btn_frame, text="キャンセル", width=10, command=dialog.destroy).pack(side="left", padx=5, pady=5)
+
+        dialog.wait_window()
+
+        mac = selected_mac[0]
+        if not mac:
+            return
+
+        self._save_mac_to_env(mac)
+        # os.environ に反映してから接続
+        import os
+        os.environ["BLE_DEVICE_MAC"] = mac
+
+        self._connect_with_new_mac(mac)
+
+    def _connect_with_new_mac(self, mac: str):
+        """新しい MAC アドレスでデバイスを再生成して接続"""
+        import settings as s_mod
+        # settings オブジェクトの MAC を更新
+        s_mod.settings.ble.device_mac = mac
+
+        # デバイスオブジェクトを再生成
+        from devices.factory import create_device
+        if self._device is not None:
+            try:
+                self._device.disconnect()
+            except Exception:
+                pass
+        self._device = create_device()
+
+        self._connect_btn.config(state="disabled")
+        self._ble_status_label.config(text="接続中...", foreground="orange")
+
+        def _do_connect():
+            ok = self._device.connect()
+            self.after(0, lambda: self._after_connect(ok))
+
+        threading.Thread(target=_do_connect, daemon=True).start()
 
     def _save_mac_to_env(self, mac: str):
         """MAC アドレスを .env に保存"""
@@ -280,23 +378,35 @@ class DashboardTab(ttk.Frame):
 
     def _on_delete_mac(self):
         """MAC アドレスを .env から削除"""
+        import os
         from pathlib import Path
         from tkinter import messagebox
 
         env_path = Path(__file__).parent.parent.parent / ".env"
 
-        if not env_path.exists():
-            messagebox.showwarning("警告", ".env ファイルが見つかりません")
-            return
+        if env_path.exists():
+            with open(env_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            for i, line in enumerate(lines):
+                if line.startswith("BLE_DEVICE_MAC="):
+                    lines[i] = f"BLE_DEVICE_MAC={_EXAMPLE_MAC}\n"
+                    break
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.writelines(lines)
 
-        with open(env_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        # os.environ からも削除してセッション内で即反映
+        os.environ.pop("BLE_DEVICE_MAC", None)
 
-        # BLE_DEVICE_MAC 行を削除
-        lines = [line for line in lines if not line.startswith("BLE_DEVICE_MAC=")]
+        # デバイスを切断
+        if self._device is not None:
+            try:
+                self._device.disconnect()
+            except Exception:
+                pass
 
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
-
-        messagebox.showinfo("成功", "MAC アドレスを削除しました。\nアプリを再起動してください。")
+        self._ble_status_label.config(text="未設定", foreground="orange")
+        self._connect_btn.config(state="normal")
+        self._disconnect_btn.config(state="disabled")
+        self._batt_btn.config(state="disabled")
+        self._batt_label.config(text="--", foreground="gray")
 

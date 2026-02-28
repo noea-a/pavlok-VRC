@@ -1,7 +1,6 @@
 import threading
 import tkinter as tk
 from tkinter import ttk
-from version import __version__
 
 
 class DashboardTab(ttk.Frame):
@@ -21,11 +20,6 @@ class DashboardTab(ttk.Frame):
         self.after(500, self._on_connect)
 
     def _create_widgets(self):
-        # ---- アプリケーション情報 ----
-        info_frame = ttk.Frame(self, padding=5)
-        info_frame.pack(fill="x", padx=10, pady=(10, 0))
-        ttk.Label(info_frame, text=f"VRChat Pavlok Connector v{__version__}", font=("", 9, "bold")).pack(side="left")
-
         # ---- BLE 接続パネル ----
         ble_frame = ttk.LabelFrame(self, text="デバイス接続", padding=10)
         ble_frame.pack(fill="x", padx=10, pady=(10, 0))

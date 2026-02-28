@@ -122,8 +122,10 @@ class SettingsTab(ttk.Frame):
             ("OSC_LISTEN_PORT", "受信ポート", "int", 9001, 1024, 65535, 1, "VRChat からの OSC 受信ポート"),
             ("OSC_SEND_PORT", "送信ポート", "int", 9000, 1024, 65535, 1, "VRChat への OSC 送信ポート"),
         ])
-        self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "リアルタイム表示", True,
-                            row=3, desc="Zap 値を Chatbox へ送信します")
+        self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "Grab中の表示", True,
+                            row=3, desc="掴み中に Zap 値をリアルタイム更新")
+        self._add_bool_item(osc_frame, "SEND_FINAL_CHATBOX", "掴み終了時の表示", True,
+                            row=4, desc="掴み終了時に最終 Zap 値を表示")
 
         # --- BLE ---
         ble_frame = ttk.LabelFrame(parent, text="BLE 接続パラメータ", padding=8)
@@ -219,6 +221,7 @@ class SettingsTab(ttk.Frame):
             "VIBRATION_ON_STRETCH_TOFF":      s.stretch_vibration.toff,
             "OSC_SEND_INTERVAL":              s.osc.send.interval,
             "SEND_REALTIME_CHATBOX":          s.osc.send.realtime_chatbox,
+            "SEND_FINAL_CHATBOX":             s.osc.send.final_chatbox,
             "BLE_CONNECT_TIMEOUT":            s.ble.connect_timeout,
             "BLE_RECONNECT_INTERVAL":         s.ble.reconnect_interval,
             "BLE_KEEPALIVE_INTERVAL":         s.ble.keepalive_interval,
@@ -299,6 +302,7 @@ class SettingsTab(ttk.Frame):
             "VIBRATION_ON_STRETCH_TOFF":      default_settings.stretch_vibration.toff,
             "OSC_SEND_INTERVAL":              default_settings.osc.send.interval,
             "SEND_REALTIME_CHATBOX":          default_settings.osc.send.realtime_chatbox,
+            "SEND_FINAL_CHATBOX":             default_settings.osc.send.final_chatbox,
             "BLE_CONNECT_TIMEOUT":            default_settings.ble.connect_timeout,
             "BLE_RECONNECT_INTERVAL":         default_settings.ble.reconnect_interval,
             "BLE_KEEPALIVE_INTERVAL":         default_settings.ble.keepalive_interval,

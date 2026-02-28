@@ -50,7 +50,9 @@ class ChatboxHandler:
 
     def _on_grab_end(self, stretch: float, duration: float) -> None:
         """Grab 終了時：最終刺激強度を Chatbox に表示する。"""
-        from config import MIN_GRAB_DURATION
+        from config import MIN_GRAB_DURATION, SEND_FINAL_CHATBOX
+        if not SEND_FINAL_CHATBOX:
+            return
         if duration < MIN_GRAB_DURATION:
             return
 

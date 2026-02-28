@@ -74,6 +74,7 @@ OSC_SEND_PORT = _s.osc.send.port
 OSC_CHATBOX_PARAM = _s.osc.send.chatbox_param
 OSC_SEND_INTERVAL = _s.osc.send.interval
 SEND_REALTIME_CHATBOX = _s.osc.send.realtime_chatbox
+SEND_FINAL_CHATBOX = _s.osc.send.final_chatbox
 
 # ===== 起動時バリデーション =====
 if CONTROL_MODE == "api" and not PAVLOK_API_KEY:

@@ -43,6 +43,9 @@ class SettingsTab(ttk.Frame):
         self._canvas.itemconfig(self._inner_id, width=event.width)
 
     def _on_mousewheel(self, event):
+        # スピンボックス上ではウィンドウスクロール無視、Box外では普通にスクロール
+        if isinstance(event.widget, ttk.Spinbox):
+            return "break"
         self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     # ------------------------------------------------------------------ #
@@ -153,9 +156,9 @@ class SettingsTab(ttk.Frame):
             key, label, value_type, default, min_val, max_val = item[:6]
             display_scale = item[6] if len(item) > 6 else 1
             desc = item[7] if len(item) > 7 else ""
-            ttk.Label(parent, text=label, width=24).grid(row=i, column=0, sticky="w", pady=3)
+            ttk.Label(parent, text=label, width=28).grid(row=i, column=0, sticky="w", pady=3)
             inc = 1 if value_type == "int" else 0.1
-            spinbox = ttk.Spinbox(parent, from_=min_val, to=max_val, width=10, increment=inc)
+            spinbox = ttk.Spinbox(parent, from_=min_val, to=max_val, width=8, increment=inc)
             spinbox.insert(0, str(default))
             spinbox.grid(row=i, column=1, sticky="w", padx=5, pady=3)
             if desc:

@@ -152,12 +152,79 @@ GUI の設定タブで変更 → `config/user.toml` に保存（`config.py` は�
 BLEDevice.connect()
    └─ 接続成功後に _PavlokBLE.start_monitor() を起動
          ├─ _monitor_loop: 5秒ごとに is_connected を確認 → 切断で自動再接続
-         └─ _keepalive_loop: 5.5秒ごとに check_api へ ping（接続維持）
+         └─ _keepalive_loop: 5.5秒ごとに c_api へ ping（接続維持）
 
 送信時（_write_with_retry）
    └─ write 失敗 → 強制 disconnect → reconnect → リトライ
 
 排他制御: asyncio.Lock (_reconnect_lock) で競合防止
+```
+
+---
+
+## Pavlok 3 BLE リファレンス
+
+### サービス UUID
+
+| 定数名 | UUID | 説明 |
+|---|---|---|
+| PAV_DIAG_SVC | `156e0000-a300-4fea-897b-86f698d74461` | 診断 |
+| PAV_CFG_SVC | `156e1000-a300-4fea-897b-86f698d74461` | 設定 |
+| PAV_NOTI_SVC | `156e2000-a300-4fea-897b-86f698d74461` | 通知 |
+| PAV_APP_SVC | `156e5000-a300-4fea-897b-86f698d74461` | アプリ制御（メイン） |
+| PAV_OTA_SVC | `156e6000-a300-4fea-897b-86f698d74461` | OTA ファームウェア更新 |
+| PAV_SETUP_SVC | `156e7000-a300-4fea-897b-86f698d74461` | セットアップ |
+| BLE_DEVINFO_SVC | `0000180a-0000-1000-8000-00805f9b34fb` | デバイス情報（標準） |
+| BLE_BATT_SVC | `0000180f-0000-1000-8000-00805f9b34fb` | バッテリー（標準） |
+| NORDIC_NUS_SVC | `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Nordic UART |
+
+### キャラクタリスティック UUID
+
+| 定数名 | UUID | 説明 | 用途 |
+|---|---|---|---|
+| c_batt | `00002a19-0000-1000-8000-00805f9b34fb` | Battery Level (標準) | read: 0〜100 (%) |
+| c_fwver | `00002a26-0000-1000-8000-00805f9b34fb` | Firmware Revision | read: 文字列 |
+| c_hwver | `00002a27-0000-1000-8000-00805f9b34fb` | Hardware Revision | read: 文字列 |
+| c_dbatt | `00000001-0000-1000-8000-00805f9b34fb` | Debug Battery | - |
+| c_daccel | `00000002-0000-1000-8000-00805f9b34fb` | Debug Accelerometer | - |
+| c_dalarm | `00000004-0000-1000-8000-00805f9b34fb` | Debug Alarm | - |
+| c_dcmd | `00000008-0000-1000-8000-00805f9b34fb` | Debug Command | - |
+| **c_vibe** | **`00001001-0000-1000-8000-00805f9b34fb`** | **Vibration** | **write: `[0x80\|count, mode, intensity, ton, toff]`** |
+| c_beep | `00001002-0000-1000-8000-00805f9b34fb` | Beep | write |
+| **c_zap** | **`00001003-0000-1000-8000-00805f9b34fb`** | **Zap** | **write: `[0x89, intensity]`** |
+| c_leds | `00001004-0000-1000-8000-00805f9b34fb` | LEDs | write |
+| c_time | `00001005-0000-1000-8000-00805f9b34fb` | Time | - |
+| c_hd | `00001006-0000-1000-8000-00805f9b34fb` | HD | - |
+| c_daq | `00001008-0000-1000-8000-00805f9b34fb` | DAQ | - |
+| c_events | `00002002-0000-1000-8000-00805f9b34fb` | Events | - |
+| c_timers | `00002003-0000-1000-8000-00805f9b34fb` | Timers | - |
+| c_files | `00002009-0000-1000-8000-00805f9b34fb` | Files | - |
+| c_atime | `0000200a-0000-1000-8000-00805f9b34fb` | Alarm Time | - |
+| c_actl | `00005001-0000-1000-8000-00805f9b34fb` | Action Control | - |
+| c_awrite | `00005002-0000-1000-8000-00805f9b34fb` | Action Write | - |
+| c_antfy | `00005003-0000-1000-8000-00805f9b34fb` | Action Notify | - |
+| c_ota | `00006002-0000-1000-8000-00805f9b34fb` | OTA | - |
+| c_setup | `00007001-0000-1000-8000-00805f9b34fb` | Setup | - |
+| **c_api** | **`00007999-0000-1000-8000-00805f9b34fb`** | **API / Keep-alive** | **write: `[87, 84]` で ping** |
+
+### Vibration コマンド形式
+
+```
+bytes([0x80 | count, mode, intensity, ton, toff])
+
+count     : 繰り返し回数 (1〜127)
+mode      : 2 固定
+intensity : 強度 (0〜100)
+ton       : ON 時間
+toff      : OFF 時間
+```
+
+### Zap コマンド形式
+
+```
+bytes([0x89, intensity])
+
+intensity : 強度 (0〜100)
 ```
 
 ---

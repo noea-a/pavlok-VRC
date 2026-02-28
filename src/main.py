@@ -42,16 +42,11 @@ def main():
     logger.info("===== VRChat Pavlok Connector Starting =====")
 
     # ------------------------------------------------------------------ #
-    # デバイス接続                                                         #
+    # デバイス生成（接続は GUI から行う）                                  #
     # ------------------------------------------------------------------ #
     from devices.factory import create_device
-    device = create_device()
-    logger.info(f"デバイス接続中: {type(device).__name__}")
-    if not device.connect():
-        logger.error("デバイス接続失敗。終了します。")
-        return
-
     from pavlok_controller import initialize_device
+    device = create_device()
     initialize_device(device)
 
     # ------------------------------------------------------------------ #
@@ -87,6 +82,7 @@ def main():
         gui.status_queue = status_queue
         gui.log_queue = log_queue
         gui.grab_state = machine  # tab_test.py / tab_stats.py が参照
+        gui.set_device(device)
 
         original_on_close = gui.on_close
         def on_close_wrapper():

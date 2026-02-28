@@ -63,9 +63,9 @@ class SettingsTab(ttk.Frame):
         basic_frame.pack(fill="x", pady=(0, 6))
 
         self._add_spinbox_items(basic_frame, [
-            ("MIN_STIMULUS_VALUE",             "Zap の最小値（％）",               "int",   15,  0,   100, 1, ""),
-            ("MAX_STIMULUS_VALUE",             "Zap の最大値（％）",               "int",   70,  0,   100, 1, ""),
-            ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（％）",           "float", 70, 0, 100, 100, "高出力の場合にバイブで警告します"),
+            ("MIN_STIMULUS_VALUE",             "Zap の最小値（％）",         "int",   15, 0, 100, 1, ""),
+            ("MAX_STIMULUS_VALUE",             "Zap の最大値（％）",         "int",   70, 0, 100, 1, ""),
+            ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（％）",         "float", 70, 0, 100, 100, "高出力の場合にバイブで警告します"),
         ])
 
         # ===== 詳細設定 トグル =====
@@ -100,7 +100,7 @@ class SettingsTab(ttk.Frame):
         self._add_spinbox_items(gs_frame, [
             ("GRAB_START_VIBRATION_INTENSITY", "強度（％）",       "int", 20, 0, 100, 1, ""),
             ("GRAB_START_VIBRATION_TON",       "継続時間（ms）",   "int", 10, 0, 255, 1, ""),
-            ("GRAB_START_VIBRATION_COUNT",     "繰り返し",   "int", 1, 1, 127, 1, ""),
+            ("GRAB_START_VIBRATION_COUNT",     "実行回数",   "int", 1, 1, 127, 1, ""),
             ("GRAB_START_VIBRATION_TOFF",      "インターバル（ms）", "int", 10, 0, 255, 1, ""),
         ])
 
@@ -110,7 +110,7 @@ class SettingsTab(ttk.Frame):
         self._add_spinbox_items(sv_frame, [
             ("VIBRATION_ON_STRETCH_INTENSITY", "強度（％）",       "int", 80, 0, 100, 1, ""),
             ("VIBRATION_ON_STRETCH_TON",       "継続時間（ms）",   "int", 6, 0, 255, 1, ""),
-            ("VIBRATION_ON_STRETCH_COUNT",     "繰り返し",   "int", 2, 1, 127, 1, ""),
+            ("VIBRATION_ON_STRETCH_COUNT",     "実行回数",   "int", 2, 1, 127, 1, ""),
             ("VIBRATION_ON_STRETCH_TOFF",      "インターバル（ms）", "int", 12, 0, 255, 1, ""),
         ])
 

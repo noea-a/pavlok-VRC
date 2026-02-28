@@ -3,7 +3,8 @@ import time
 import threading
 from datetime import datetime
 from queue import Queue
-from osc_listener import OSCListener
+from osc.receiver import OSCReceiver
+from osc.sender import OSCSender
 from zap_recorder import ZapRecorder
 from config import (
     MIN_GRAB_DURATION, USE_VIBRATION,
@@ -184,17 +185,18 @@ def main():
     from pavlok_controller import initialize_device
     initialize_device(device)
 
-    # OSCリスナー作成
-    listener = OSCListener()
+    # OSC 送受信を別々に生成
+    osc_sender = OSCSender()
+    osc_receiver = OSCReceiver()
 
     # 状態管理オブジェクト作成
-    grab_state = GrabState(osc_sender=listener, status_queue=status_queue, log_queue=log_queue)
+    grab_state = GrabState(osc_sender=osc_sender, status_queue=status_queue, log_queue=log_queue)
 
-    listener.on_stretch_change = grab_state.on_stretch_change
-    listener.on_grabbed_change = grab_state.on_grabbed_change
+    osc_receiver.on_stretch_change = grab_state.on_stretch_change
+    osc_receiver.on_grabbed_change = grab_state.on_grabbed_change
 
-    # OSCリスナーを daemon スレッドで起動
-    listener_thread = threading.Thread(target=listener.start, daemon=True)
+    # OSC 受信を daemon スレッドで起動
+    listener_thread = threading.Thread(target=osc_receiver.start, daemon=True)
     listener_thread.start()
     logger.info("Listening for OSC messages...")
 
@@ -210,7 +212,7 @@ def main():
         def on_close_wrapper():
             logger.info("Shutting down...")
             gui.is_running = False
-            listener.stop()
+            osc_receiver.stop()
             device.disconnect()
             original_on_close()
 
@@ -230,10 +232,10 @@ def main():
         except KeyboardInterrupt:
             logger.info("Interrupted by user")
         finally:
-            listener.stop()
+            osc_receiver.stop()
 
     finally:
-        listener.stop()
+        osc_receiver.stop()
         device.disconnect()
         logger.info(f"===== VRChat Pavlok Connector Stopped =====")
 

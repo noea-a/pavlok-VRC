@@ -13,6 +13,7 @@ GUI 互換のため以下の公開属性を持つ（state machine が内部で�
 
 import time
 import logging
+from collections import deque
 from typing import Callable
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,9 @@ class GrabStateMachine:
         self.current_stretch: float = 0.0
         self.grab_start_time: float | None = None
         self.stretch_above_threshold: bool = False
+
+        # --- Stretch 履歴（速度計算用） ---
+        self._stretch_history: deque[tuple[float, float]] = deque(maxlen=50)
 
         # --- テストモードフラグ（tab_test.py から外部設定） ---
         self.is_test_mode: bool = False
@@ -82,6 +86,7 @@ class GrabStateMachine:
         if not self.is_grabbed:
             return
 
+        self._stretch_history.append((time.time(), value))
         logger.debug(f"Stretch updated: {value:.3f}")
         self._fire(self._on_stretch_update, value)
 
@@ -108,6 +113,7 @@ class GrabStateMachine:
             # false → true: Grab 開始
             self.grab_start_time = time.time()
             self.stretch_above_threshold = False
+            self._stretch_history.clear()
             logger.info("[SM] Grab started")
             self._fire(self._on_grab_start)
 
@@ -121,6 +127,25 @@ class GrabStateMachine:
                 self.grab_start_time = None
                 self.current_stretch = 0.0
             self.stretch_above_threshold = False
+
+    def get_max_speed(self) -> float:
+        """Grab 中に記録した Stretch 履歴から最大引っ張り速度（stretch/秒）を返す。"""
+        history = list(self._stretch_history)
+        if len(history) < 2:
+            return 0.0
+        max_speed = 0.0
+        for i in range(1, len(history)):
+            t_prev, s_prev = history[i - 1]
+            t_curr, s_curr = history[i]
+            if s_curr <= s_prev:
+                continue  # 戻し区間は除外
+            dt = t_curr - t_prev
+            if dt <= 0:
+                continue
+            speed = (s_curr - s_prev) / dt
+            if speed > max_speed:
+                max_speed = speed
+        return max_speed
 
     # ------------------------------------------------------------------ #
     # 内部                                                                 #

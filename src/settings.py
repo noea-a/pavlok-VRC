@@ -81,6 +81,10 @@ class LogicSettings:
     max_stretch_for_calc: float = 0.8
     nonlinear_switch_position_percent: int = 50
     intensity_at_switch_percent: int = 20
+    intensity_mode: str = "stretch"
+    max_speed_for_calc: float = 2.0
+    stretch_weight: float = 0.5
+    speed_weight: float = 0.5
 
 
 @dataclass
@@ -208,6 +212,10 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "OSC_SEND_INTERVAL":                  ("osc.send", "interval"),
     "SEND_REALTIME_CHATBOX":              ("osc.send", "realtime_chatbox"),
     "SEND_FINAL_CHATBOX":                 ("osc.send", "final_chatbox"),
+    "INTENSITY_MODE":                     ("logic", "intensity_mode"),
+    "MAX_SPEED_FOR_CALC":                 ("logic", "max_speed_for_calc"),
+    "STRETCH_WEIGHT":                     ("logic", "stretch_weight"),
+    "SPEED_WEIGHT":                       ("logic", "speed_weight"),
     # 詳細設定
     "BLE_CONNECT_TIMEOUT":               ("ble", "connect_timeout"),
     "BLE_RECONNECT_INTERVAL":            ("ble", "reconnect_interval"),

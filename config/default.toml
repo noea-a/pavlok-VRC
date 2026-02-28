@@ -36,6 +36,10 @@ min_stretch_for_calc = 0.0
 max_stretch_for_calc = 0.8
 nonlinear_switch_position_percent = 50
 intensity_at_switch_percent = 20
+intensity_mode = "stretch"   # "stretch" / "speed" / "combined"
+max_speed_for_calc = 2.0     # この速度(stretch/秒)以上で強度が最大
+stretch_weight = 0.5         # combined モードの stretch 重み
+speed_weight = 0.5           # combined モードの speed 重み
 
 # ===== Grab開始バイブ設定 =====
 [grab_start_vibration]

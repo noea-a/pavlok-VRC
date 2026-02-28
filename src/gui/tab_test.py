@@ -25,7 +25,7 @@ class TestTab(ttk.Frame):
     # ------------------------------------------------------------------ #
 
     def _create_unit_test_panel(self):
-        frame = ttk.LabelFrame(self, text="単体テスト（Grab なし）", padding=10)
+        frame = ttk.LabelFrame(self, text="単体テスト（掴みなし）", padding=10)
         frame.pack(fill="x", padx=10, pady=(10, 5))
 
         vib_frame = ttk.Frame(frame)
@@ -141,18 +141,18 @@ class TestTab(ttk.Frame):
     # ------------------------------------------------------------------ #
 
     def _create_grab_sim_panel(self):
-        frame = ttk.LabelFrame(self, text="Grab シミュレーション", padding=10)
+        frame = ttk.LabelFrame(self, text="掴みシミュレーション", padding=10)
         frame.pack(fill="x", padx=10, pady=(5, 10))
 
         grab_frame = ttk.Frame(frame)
         grab_frame.pack(fill="x", pady=4)
-        ttk.Label(grab_frame, text="Grab状態:", width=15).pack(side="left")
-        ttk.Button(grab_frame, text="Grab開始", command=self.test_grab_start, width=10).pack(side="left", padx=2)
-        ttk.Button(grab_frame, text="Grab終了", command=self.test_grab_end, width=10).pack(side="left", padx=2)
+        ttk.Label(grab_frame, text="掴み状態:", width=15).pack(side="left")
+        ttk.Button(grab_frame, text="掴み開始", command=self.test_grab_start, width=10).pack(side="left", padx=2)
+        ttk.Button(grab_frame, text="掴み終了", command=self.test_grab_end, width=10).pack(side="left", padx=2)
 
         stretch_frame = ttk.Frame(frame)
         stretch_frame.pack(fill="x", pady=4)
-        ttk.Label(stretch_frame, text="Stretch値:", width=15).pack(side="left")
+        ttk.Label(stretch_frame, text="引っ張り度:", width=15).pack(side="left")
         self.test_stretch_slider = ttk.Scale(
             stretch_frame, from_=0.0, to=1.0, orient="horizontal",
             variable=self.test_stretch_var, command=self.on_test_stretch_change,

@@ -206,6 +206,19 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "VIBRATION_ON_STRETCH_TOFF":          ("stretch_vibration", "toff"),
     "OSC_SEND_INTERVAL":                  ("osc.send", "interval"),
     "SEND_REALTIME_CHATBOX":              ("osc.send", "realtime_chatbox"),
+    # 詳細設定
+    "BLE_CONNECT_TIMEOUT":               ("ble", "connect_timeout"),
+    "BLE_RECONNECT_INTERVAL":            ("ble", "reconnect_interval"),
+    "BLE_KEEPALIVE_INTERVAL":            ("ble", "keepalive_interval"),
+    "BLE_BATTERY_REFRESH_INTERVAL":      ("ble", "battery_refresh_interval"),
+    "OSC_LISTEN_PORT":                   ("osc", "listen_port"),
+    "OSC_SEND_PORT":                     ("osc.send", "port"),
+    "LOG_STRETCH":                       ("debug", "log_stretch"),
+    "LOG_IS_GRABBED":                    ("debug", "log_is_grabbed"),
+    "LOG_ANGLE":                         ("debug", "log_angle"),
+    "LOG_IS_POSED":                      ("debug", "log_is_posed"),
+    "LOG_OSC_SEND":                      ("debug", "log_osc_send"),
+    "LOG_ALL_OSC":                       ("debug", "log_all_osc"),
 }
 
 

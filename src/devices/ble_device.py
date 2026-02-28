@@ -237,7 +237,8 @@ class _PavlokBLE:
                 if attempt < _WRITE_RETRIES:
                     logger.info("BLE forcing reconnect after write failure...")
                     async with self._reconnect_lock:
-                        await self._do_reconnect("write-retry")
+                        if not await self._do_reconnect("write-retry"):
+                            break
 
         logger.error(f"BLE {label} write failed after {_WRITE_RETRIES} attempts")
         return False
@@ -313,7 +314,9 @@ class BLEDevice:
         for attempt in range(1, max_attempts + 1):
             logger.info(f"BLE 接続試行 {attempt}/{max_attempts}...")
             try:
-                ok = self._run_coro(self._ble.connect(), timeout=self._connect_timeout + 5)
+                # scan (最大 connect_timeout*0.6) + GATT接続 (connect_timeout) + バッファ
+                coro_timeout = self._connect_timeout * 1.7 + 3
+                ok = self._run_coro(self._ble.connect(), timeout=coro_timeout)
             except Exception as e:
                 logger.error(f"BLEDevice.connect error (attempt {attempt}): {e}")
                 ok = False

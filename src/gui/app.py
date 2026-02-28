@@ -28,7 +28,7 @@ class QueueHandler(logging.Handler):
 class PavlokGUI(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(f"VRChat Pavlok Connector v{__version__}")
+        self.title("VRChat Pavlok Connector")
         self.geometry("800x600")
 
         self.status_queue = Queue()

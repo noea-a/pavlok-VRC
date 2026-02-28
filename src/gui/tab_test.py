@@ -91,7 +91,7 @@ class TestTab(ttk.Frame):
         grid.pack(fill="x")
 
         fields = [
-            ("counter",   "カウンタ (0-127)",    0,   0, 127),
+            ("counter",   "カウンタ (0-127)",    1,   0, 127),
             ("mode",      "モード",              2,   0, 255),
             ("intensity", "強度 (0-100)",        50,  0, 100),
             ("ton",       "ton",                22,  0, 255),
@@ -105,13 +105,6 @@ class TestTab(ttk.Frame):
             sb = ttk.Spinbox(grid, from_=mn, to=mx, textvariable=var, width=8)
             sb.grid(row=row, column=1, sticky="w", padx=5, pady=3)
             self._raw_vars[key] = var
-
-        # カウンタ自動インクリメント
-        auto_frame = ttk.Frame(frame)
-        auto_frame.pack(fill="x", pady=(6, 2))
-        self._auto_counter_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(auto_frame, text="送信ごとにカウンタを自動インクリメント",
-                        variable=self._auto_counter_var).pack(side="left")
 
         # 送信ボタン & 結果表示
         btn_frame = ttk.Frame(frame)
@@ -132,9 +125,8 @@ class TestTab(ttk.Frame):
         self._raw_result_label.config(text=label_text)
         print(f"[BLE Raw] {label_text}")
 
-        if self._auto_counter_var.get():
-            next_counter = (counter + 1) & 0x7F
-            self._raw_vars["counter"].set(next_counter)
+        next_counter = (counter + 1) & 0x7F
+        self._raw_vars["counter"].set(next_counter)
 
         def _send():
             try:

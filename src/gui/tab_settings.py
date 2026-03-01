@@ -95,22 +95,22 @@ class SettingsTab(ttk.Frame):
             ("MIN_STRETCH_THRESHOLD", "最小閾値", "float", 0.03, 0.0, 1.0, 1, "これ未満の引っ張り度は処理しません"),
             ("VIBRATION_HYSTERESIS_OFFSET", "高出力警告のヒステリシス（％）", "float", 15, 0, 100, 100, "チャタリング防止"),
         ])
-        self._add_combo_item(zap_frame, "INTENSITY_MODE", "強度計算モード",
-                             ["stretch", "speed", "combined"], "stretch", row=3,
-                             desc="stretch=引っ張り量 / speed=引っ張り速度 / combined=合算")
-        mode_items = [
-            ("MAX_SPEED_FOR_CALC", "最大速度（stretch/秒）", "float", 2.0, 0.1, 20.0, "speed/combined モードでこの速度で強度最大"),
-            ("STRETCH_WEIGHT",     "stretch 重み（combined）", "float", 0.5, 0.0, 1.0, "combined モードの stretch スコア重み"),
-            ("SPEED_WEIGHT",       "speed 重み（combined）",   "float", 0.5, 0.0, 1.0, "combined モードの speed スコア重み"),
-        ]
-        for i, (key, label, vtype, default, min_val, max_val, desc) in enumerate(mode_items):
-            row = 4 + i
-            ttk.Label(zap_frame, text=label, width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
-            spinbox = ttk.Spinbox(zap_frame, from_=min_val, to=max_val, width=8, increment=0.1)
-            spinbox.insert(0, str(default))
-            spinbox.grid(row=row, column=1, sticky="w", padx=5, pady=3)
-            ttk.Label(zap_frame, text=desc, foreground="gray").grid(row=row, column=2, sticky="w", padx=(0, 8), pady=3)
-            self.setting_widgets[key] = {"widget": spinbox, "type": vtype, "label": label, "display_scale": 1}
+        # --- Speed モード ---
+        speed_frame = ttk.LabelFrame(parent, text="Speed モード", padding=8)
+        speed_frame.pack(fill="x", pady=(6, 4))
+        self._add_spinbox_items(speed_frame, [
+            ("SPEED_GRAB_SETTLE_TIME",       "安定待機時間（秒）",           "float", 0.08, 0.0, 1.0,  1, "Grab 直後の無視時間"),
+            ("SPEED_ONSET_THRESHOLD",        "計測開始速度（stretch/秒）",   "float", 1.0,  0.0, 10.0, 1, "この速度を超えると計測開始"),
+            ("SPEED_ONSET_TICKS",            "onset 判定 tick 数",           "int",   5,    1,   50,   1, "onset 判定に使う直近エントリ数"),
+            ("INITIAL_SPEED_STRETCH_WINDOW", "初期速度区間（%）",            "int",   50,   1,   100,  1, "初期速度チェックの対象区間"),
+            ("SPEED_ZAP_THRESHOLD",          "初期速度閾値（stretch/秒）",   "float", 1.5,  0.0, 10.0, 1, "初期区間の平均速度下限"),
+            ("MIN_SPEED_EVAL_WINDOW",        "総合速度区間（%）",            "int",   90,   1,   100,  1, "総合速度チェックの対象区間"),
+            ("MIN_SPEED_THRESHOLD",          "総合速度閾値（stretch/秒）",   "float", 0.5,  0.0, 10.0, 1, "全体平均速度下限"),
+            ("SPEED_STOP_THRESHOLD",         "停止判定速度（stretch/秒）",   "float", 0.1,  0.0, 5.0,  1, "この速度以下で停止とみなす"),
+            ("SPEED_ZAP_HOLD_TIME",          "停止→発火待機（秒）",         "float", 0.3,  0.0, 2.0,  1, "停止検知から Zap までの待機"),
+            ("MAX_ZAP_DURATION",             "最大計測時間（秒）",           "float", 1.0,  0.1, 10.0, 1, "超過で発火キャンセル"),
+            ("ZAP_RESET_PULLBACK",           "リセット戻し量（%）",          "int",   30,   1,   100,  1, "Zap 後に再発火を許可する戻し割合"),
+        ])
 
         # --- 掴み開始バイブ ---
         gs_frame = ttk.LabelFrame(parent, text="掴み開始バイブ", padding=8)
@@ -280,10 +280,17 @@ class SettingsTab(ttk.Frame):
             "LOG_OSC_SEND":                   s.debug.log_osc_send,
             "LOG_ALL_OSC":                    s.debug.log_all_osc,
             "LOG_TO_FILE":                    s.debug.log_to_file,
-            "INTENSITY_MODE":                 s.logic.intensity_mode,
-            "MAX_SPEED_FOR_CALC":             s.logic.max_speed_for_calc,
-            "STRETCH_WEIGHT":                 s.logic.stretch_weight,
-            "SPEED_WEIGHT":                   s.logic.speed_weight,
+            "SPEED_GRAB_SETTLE_TIME":         s.speed_mode.grab_settle_time,
+            "SPEED_ONSET_THRESHOLD":          s.speed_mode.speed_onset_threshold,
+            "SPEED_ONSET_TICKS":              s.speed_mode.speed_onset_ticks,
+            "INITIAL_SPEED_STRETCH_WINDOW":   s.speed_mode.initial_speed_stretch_window,
+            "SPEED_ZAP_THRESHOLD":            s.speed_mode.speed_zap_threshold,
+            "MIN_SPEED_EVAL_WINDOW":          s.speed_mode.min_speed_eval_window,
+            "MIN_SPEED_THRESHOLD":            s.speed_mode.min_speed_threshold,
+            "SPEED_STOP_THRESHOLD":           s.speed_mode.speed_stop_threshold,
+            "SPEED_ZAP_HOLD_TIME":            s.speed_mode.speed_zap_hold_time,
+            "MAX_ZAP_DURATION":               s.speed_mode.max_zap_duration,
+            "ZAP_RESET_PULLBACK":             s.speed_mode.zap_reset_pullback,
         }
 
     def load_settings(self):
@@ -370,10 +377,17 @@ class SettingsTab(ttk.Frame):
             "LOG_OSC_SEND":                   default_settings.debug.log_osc_send,
             "LOG_ALL_OSC":                    default_settings.debug.log_all_osc,
             "LOG_TO_FILE":                    default_settings.debug.log_to_file,
-            "INTENSITY_MODE":                 default_settings.logic.intensity_mode,
-            "MAX_SPEED_FOR_CALC":             default_settings.logic.max_speed_for_calc,
-            "STRETCH_WEIGHT":                 default_settings.logic.stretch_weight,
-            "SPEED_WEIGHT":                   default_settings.logic.speed_weight,
+            "SPEED_GRAB_SETTLE_TIME":         default_settings.speed_mode.grab_settle_time,
+            "SPEED_ONSET_THRESHOLD":          default_settings.speed_mode.speed_onset_threshold,
+            "SPEED_ONSET_TICKS":              default_settings.speed_mode.speed_onset_ticks,
+            "INITIAL_SPEED_STRETCH_WINDOW":   default_settings.speed_mode.initial_speed_stretch_window,
+            "SPEED_ZAP_THRESHOLD":            default_settings.speed_mode.speed_zap_threshold,
+            "MIN_SPEED_EVAL_WINDOW":          default_settings.speed_mode.min_speed_eval_window,
+            "MIN_SPEED_THRESHOLD":            default_settings.speed_mode.min_speed_threshold,
+            "SPEED_STOP_THRESHOLD":           default_settings.speed_mode.speed_stop_threshold,
+            "SPEED_ZAP_HOLD_TIME":            default_settings.speed_mode.speed_zap_hold_time,
+            "MAX_ZAP_DURATION":               default_settings.speed_mode.max_zap_duration,
+            "ZAP_RESET_PULLBACK":             default_settings.speed_mode.zap_reset_pullback,
         }
         for key, value in defaults.items():
             if key not in self.setting_widgets:

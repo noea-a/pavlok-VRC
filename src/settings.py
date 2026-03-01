@@ -82,10 +82,21 @@ class LogicSettings:
     max_stretch_for_calc: float = 0.8
     nonlinear_switch_position_percent: int = 50
     intensity_at_switch_percent: int = 20
-    intensity_mode: str = "stretch"
-    max_speed_for_calc: float = 2.0
-    stretch_weight: float = 0.5
-    speed_weight: float = 0.5
+
+
+@dataclass
+class SpeedModeSettings:
+    grab_settle_time: float = 0.08
+    speed_onset_threshold: float = 1.0
+    speed_onset_ticks: int = 5
+    initial_speed_stretch_window: int = 50
+    speed_zap_threshold: float = 1.5
+    min_speed_eval_window: int = 90
+    min_speed_threshold: float = 0.5
+    speed_stop_threshold: float = 0.1
+    speed_zap_hold_time: float = 0.3
+    max_zap_duration: float = 1.0
+    zap_reset_pullback: int = 30
 
 
 @dataclass
@@ -143,6 +154,7 @@ class Settings:
     device: DeviceSettings = field(default_factory=DeviceSettings)
     ble: BleSettings = field(default_factory=BleSettings)
     api: ApiSettings = field(default_factory=ApiSettings)
+    speed_mode: SpeedModeSettings = field(default_factory=SpeedModeSettings)
 
 
 def _apply_toml(settings: Settings, data: dict) -> None:
@@ -213,10 +225,18 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "OSC_SEND_INTERVAL":                  ("osc.send", "interval"),
     "SEND_REALTIME_CHATBOX":              ("osc.send", "realtime_chatbox"),
     "SEND_FINAL_CHATBOX":                 ("osc.send", "final_chatbox"),
-    "INTENSITY_MODE":                     ("logic", "intensity_mode"),
-    "MAX_SPEED_FOR_CALC":                 ("logic", "max_speed_for_calc"),
-    "STRETCH_WEIGHT":                     ("logic", "stretch_weight"),
-    "SPEED_WEIGHT":                       ("logic", "speed_weight"),
+    # Speed モード設定
+    "SPEED_GRAB_SETTLE_TIME":             ("speed_mode", "grab_settle_time"),
+    "SPEED_ONSET_THRESHOLD":              ("speed_mode", "speed_onset_threshold"),
+    "SPEED_ONSET_TICKS":                  ("speed_mode", "speed_onset_ticks"),
+    "INITIAL_SPEED_STRETCH_WINDOW":       ("speed_mode", "initial_speed_stretch_window"),
+    "SPEED_ZAP_THRESHOLD":                ("speed_mode", "speed_zap_threshold"),
+    "MIN_SPEED_EVAL_WINDOW":              ("speed_mode", "min_speed_eval_window"),
+    "MIN_SPEED_THRESHOLD":                ("speed_mode", "min_speed_threshold"),
+    "SPEED_STOP_THRESHOLD":               ("speed_mode", "speed_stop_threshold"),
+    "SPEED_ZAP_HOLD_TIME":                ("speed_mode", "speed_zap_hold_time"),
+    "MAX_ZAP_DURATION":                   ("speed_mode", "max_zap_duration"),
+    "ZAP_RESET_PULLBACK":                 ("speed_mode", "zap_reset_pullback"),
     # 詳細設定
     "BLE_CONNECT_TIMEOUT":               ("ble", "connect_timeout"),
     "BLE_RECONNECT_INTERVAL":            ("ble", "reconnect_interval"),

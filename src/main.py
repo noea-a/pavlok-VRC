@@ -8,7 +8,7 @@ from queue import Queue
 from osc.receiver import OSCReceiver
 from osc.sender import OSCSender
 from state_machine import GrabStateMachine
-from handlers import StimulusHandler, ChatboxHandler, RecorderHandler, GUIUpdater
+from handlers import StimulusHandler, ChatboxHandler, RecorderHandler, GUIUpdater, SpeedModeHandler
 from zap_recorder import ZapRecorder
 from gui import QueueHandler
 
@@ -69,6 +69,7 @@ def main():
     ChatboxHandler(machine, OSCSender())
     RecorderHandler(machine, zap_recorder)
     GUIUpdater(machine, status_queue)
+    SpeedModeHandler(machine, status_queue)
 
     # ------------------------------------------------------------------ #
     # OSC 受信                                                             #

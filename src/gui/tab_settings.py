@@ -5,6 +5,7 @@ import settings as settings_module
 
 class SettingsTab(ttk.Frame):
     _LABEL_WIDTH = 28  # スピンボックス・チェックボックスのラベル幅（統一）
+    _INPUT_WIDTH = 12   # スピンボックス・エントリの入力幅（統一）
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -71,14 +72,8 @@ class SettingsTab(ttk.Frame):
         ])
         self._add_combo_item(basic_frame, "ZAP_MODE", "Zap モード",
                              ["stretch", "speed"], "stretch", row=3,
-                             desc="stretch=引っ張り量 / speed=引っ張り速度（再起動で反映）")
+                             desc="stretch=引っ張り量 / speed=引っ張り速度")
         self.setting_widgets["ZAP_MODE"]["var"].trace_add("write", self._on_zap_mode_change)
-        self._add_combo_item(basic_frame, "CONTROL_MODE", "制御モード",
-                             ["ble", "api"], "ble", row=4,
-                             desc="ble=Bluetooth直接制御 / api=クラウド API（再起動で反映）")
-        self._add_bool_item(basic_frame, "USE_VIBRATION", "バイブレーションモード", False, row=5,
-                            desc="ON=バイブ / OFF=Zap（再起動で反映）")
-
         # ===== 詳細設定 トグル =====
         self._toggle_btn = ttk.Button(
             outer, text="▶ 詳細設定", command=self._toggle_advanced
@@ -96,15 +91,24 @@ class SettingsTab(ttk.Frame):
         ttk.Button(self._btn_frame, text="デフォルト", command=self.reset_settings).pack(side="left", padx=5)
 
     def _build_advanced(self, parent):
+        # --- デバイス ---
+        device_frame = ttk.LabelFrame(parent, text="デバイス", padding=8)
+        device_frame.pack(fill="x", pady=(6, 4))
+        self._add_combo_item(device_frame, "CONTROL_MODE", "制御モード",
+                             ["ble", "api"], "ble", row=0,
+                             desc="ble=Bluetooth直接制御 / api=クラウド API（再起動で反映）")
+        self._add_bool_item(device_frame, "USE_VIBRATION", "バイブレーションモード", False, row=1,
+                            desc="Zap の代わりにバイブを使用します（テスト用）")
+
         # --- Zap 強度・閾値 ---
         zap_frame = ttk.LabelFrame(parent, text="Zap 強度・閾値", padding=8)
         zap_frame.pack(fill="x", pady=(6, 4))
         self._add_spinbox_items(zap_frame, [
             ("MIN_GRAB_DURATION",                "掴み判定時間（秒）",             "float", 0.8,  0.1, 10.0, 1,   "これ未満の掴み時間では処理しません"),
             ("MIN_STRETCH_THRESHOLD",            "最小閾値",                      "float", 0.03, 0.0, 1.0,  1,   "これ未満の引っ張り度は処理しません"),
-            ("MIN_STRETCH_PLATEAU",              "プラトー閾値",                   "float", 0.12, 0.0, 1.0,  1,   "Grab終了時の最小有効 stretch"),
-            ("MAX_STRETCH_FOR_CALC",             "強度計算の入力上限",              "float", 0.8,  0.0, 2.0,  1,   "この値で最大強度に達する"),
-            ("NONLINEAR_SWITCH_POSITION_PERCENT","強度カーブの切替点（%）",         "int",   50,   1,   99,   1,   "入力範囲のうち何%で非線形に切り替えるか"),
+            ("MIN_STRETCH_PLATEAU",              "プラトー閾値",                   "float", 0.12, 0.0, 1.0,  1,   "掴み終了時に有効な最小引っ張り度"),
+            ("MAX_STRETCH_FOR_CALC",             "引っ張り度の上限",              "float", 0.8,  0.0, 2.0,  1,   "この値以上は100％を出力"),
+            ("NONLINEAR_SWITCH_POSITION_PERCENT","強度計算の切替点（%）",         "int",   50,   1,   99,   1,   "入力範囲のどこで傾きを切り替えるか"),
             ("INTENSITY_AT_SWITCH_PERCENT",      "切替点での強度（%）",             "int",   20,   1,   99,   1,   "切替点における出力強度の割合"),
             ("VIBRATION_HYSTERESIS_OFFSET",      "高出力警告のヒステリシス（％）",   "float", 15,   0,   100,  100, "チャタリング防止"),
         ])
@@ -154,8 +158,8 @@ class SettingsTab(ttk.Frame):
         row = 2
         self._add_entry_item(osc_frame, "OSC_SEND_IP", "送信先 IP", "127.0.0.1", row=row, desc="通常は 127.0.0.1")
         row += 1
-        self._add_entry_item(osc_frame, "OSC_PB_PREFIX", "PB コンポーネント名", "ShockPB", row=row,
-                             desc="_Stretch / _IsGrabbed 等のサフィックスは自動付与", width=20)
+        self._add_entry_item(osc_frame, "OSC_PB_PREFIX", "PhysBone のパラメータ名", "ShockPB", row=row,
+                             desc="")
         row += 1
         # Zap予測値関連
         self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "掴み中の Zap 予測値", True,
@@ -163,7 +167,7 @@ class SettingsTab(ttk.Frame):
         row += 1
         # 更新間隔
         ttk.Label(osc_frame, text="Chatbox 更新間隔（秒）", width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
-        spinbox = ttk.Spinbox(osc_frame, from_=0.0, to=10.0, width=8, increment=0.1)
+        spinbox = ttk.Spinbox(osc_frame, from_=0.0, to=10.0, width=self._INPUT_WIDTH, increment=0.1)
         spinbox.insert(0, "1.5")
         spinbox.grid(row=row, column=1, sticky="w", padx=5, pady=3)
         ttk.Label(osc_frame, text="極端に短くするとスパムとして扱われる可能性があります", foreground="gray").grid(
@@ -217,7 +221,7 @@ class SettingsTab(ttk.Frame):
                 inc = custom_inc
             else:
                 inc = 1 if value_type == "int" else 0.1
-            spinbox = ttk.Spinbox(parent, from_=min_val, to=max_val, width=8, increment=inc)
+            spinbox = ttk.Spinbox(parent, from_=min_val, to=max_val, width=self._INPUT_WIDTH, increment=inc)
             spinbox.insert(0, str(default))
             spinbox.grid(row=i, column=1, sticky="w", padx=5, pady=3)
             if desc:
@@ -235,10 +239,10 @@ class SettingsTab(ttk.Frame):
         name = stretch_param.rsplit("/", 1)[-1]  # 'ShockPB_Stretch'
         return name.removesuffix("_Stretch")
 
-    def _add_entry_item(self, parent, key, label, default: str, row: int, desc: str = "", width: int = 36):
+    def _add_entry_item(self, parent, key, label, default: str, row: int, desc: str = ""):
         ttk.Label(parent, text=label, width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
         var = tk.StringVar(value=default)
-        entry = ttk.Entry(parent, textvariable=var, width=width)
+        entry = ttk.Entry(parent, textvariable=var, width=self._INPUT_WIDTH)
         entry.grid(row=row, column=1, columnspan=1, sticky="w", padx=5, pady=3)
         if desc:
             ttk.Label(parent, text=desc, foreground="gray").grid(
@@ -280,6 +284,8 @@ class SettingsTab(ttk.Frame):
         "VIBRATION_ON_STRETCH_COUNT",
         "VIBRATION_ON_STRETCH_TON",
         "VIBRATION_ON_STRETCH_TOFF",
+        "SEND_REALTIME_CHATBOX",
+        "OSC_SEND_INTERVAL",
     )
 
     def _on_zap_mode_change(self, *_):

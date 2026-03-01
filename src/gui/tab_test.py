@@ -104,6 +104,7 @@ class TestTab(ttk.Frame):
             ("mode_state",    "状態:"),
             ("origin",        "原点 Stretch:"),
             ("peak",          "Peak Stretch:"),
+            ("delta",         "引っ張り量 (delta):"),
             ("recent_speed",  "直近速度 (s/s):"),
             ("history",       "履歴:"),
         ]
@@ -239,6 +240,9 @@ class TestTab(ttk.Frame):
             text=f"{state.get('origin_stretch', 0):.3f}", foreground="black")
         self._sd_labels["peak"].config(
             text=f"{state.get('peak_stretch', 0):.3f}", foreground="black")
+        delta = state.get("delta", 0)
+        self._sd_labels["delta"].config(
+            text=f"{delta:.3f}  ← 強度計算に使用", foreground="#0055aa")
         spd = state.get("recent_speed", 0)
         spd_fg = "#007700" if spd > 0.5 else "black"
         self._sd_labels["recent_speed"].config(text=f"{spd:.3f}", foreground=spd_fg)

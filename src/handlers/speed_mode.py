@@ -4,6 +4,7 @@ Grab 中の Stretch 変化速度を監視し、素早い引っ張りを検出し
 """
 
 import time
+import threading
 import logging
 from collections import deque
 from queue import Queue
@@ -27,6 +28,7 @@ class SpeedModeHandler:
         self._measuring: bool = False
         self._peak_stretch: float = 0.0
         self._stop_start_time: float | None = None
+        self._stop_timer: threading.Timer | None = None
         self._zap_fired: bool = False
         self._zap_fire_stretch: float = 0.0
 
@@ -39,6 +41,7 @@ class SpeedModeHandler:
     # ------------------------------------------------------------------ #
 
     def _on_grab_start(self) -> None:
+        self._cancel_stop_timer()
         self._grab_start_time = time.time()
         self._is_settled = False
         self._history.clear()
@@ -50,6 +53,7 @@ class SpeedModeHandler:
         logger.debug("[SpeedMode] Grab started, settling...")
 
     def _on_grab_end(self, stretch: float, duration: float) -> None:
+        self._cancel_stop_timer()
         self._is_settled = False
         self._measuring = False
         self._zap_fired = False
@@ -100,13 +104,15 @@ class SpeedModeHandler:
         # 停止検知（stretch 方向のみ）
         recent_speed = self._calc_recent_speed()
         if recent_speed > sm.speed_stop_threshold:
-            self._stop_start_time = None
+            # 動いている → タイマーリセット
+            if self._stop_start_time is not None:
+                self._cancel_stop_timer()
+                self._stop_start_time = None
         else:
+            # 停止とみなす → 初回のみタイマー開始
             if self._stop_start_time is None:
                 self._stop_start_time = now
-            elif now - self._stop_start_time >= sm.speed_zap_hold_time:
-                self._check_zap_fire(now, sm)
-                self._stop_start_time = None
+                self._start_stop_timer(sm.speed_zap_hold_time)
 
         self._update_machine_state(stretch)
 
@@ -114,8 +120,31 @@ class SpeedModeHandler:
     # 内部ロジック                                                         #
     # ------------------------------------------------------------------ #
 
+    def _start_stop_timer(self, hold_time: float) -> None:
+        """停止タイマーを開始する。OSC 更新がなくても hold_time 後に発火チェックする。"""
+        self._cancel_stop_timer()
+        self._stop_timer = threading.Timer(hold_time, self._on_stop_timer_fired)
+        self._stop_timer.daemon = True
+        self._stop_timer.start()
+        logger.debug(f"[SpeedMode] Stop timer started ({hold_time:.2f}s)")
+
+    def _cancel_stop_timer(self) -> None:
+        if self._stop_timer is not None:
+            self._stop_timer.cancel()
+            self._stop_timer = None
+
+    def _on_stop_timer_fired(self) -> None:
+        """タイマー満了：発火チェックを実行する。"""
+        self._stop_timer = None
+        if not self._measuring or self._zap_fired:
+            return
+        self._stop_start_time = None
+        self._check_zap_fire(time.time(), self._get_settings())
+
     def _reset_origin(self, stretch: float, now: float) -> None:
         """原点をリセットして計測開始"""
+        self._cancel_stop_timer()
+        self._stop_start_time = None
         self._origin_stretch = stretch
         self._origin_time = now
         self._measuring = True

@@ -153,8 +153,10 @@ class SpeedModeHandler:
             return
 
         # 全チェック通過 → Zap 発火
+        delta = self._peak_stretch - self._origin_stretch
         logger.info(
-            f"[SpeedMode] ZAP FIRE! peak_stretch={self._peak_stretch:.3f}, "
+            f"[SpeedMode] ZAP FIRE! origin={self._origin_stretch:.3f}, "
+            f"peak={self._peak_stretch:.3f}, delta={delta:.3f}, "
             f"initial_avg={initial_avg:.3f}, eval_avg={eval_avg:.3f}"
         )
         self._fire_zap()
@@ -166,7 +168,8 @@ class SpeedModeHandler:
         from config import USE_VIBRATION
 
         cfg = IntensityConfig.from_settings()
-        intensity = calculate_intensity(self._peak_stretch, cfg)
+        delta = self._peak_stretch - self._origin_stretch
+        intensity = calculate_intensity(delta, cfg)
         if intensity <= 0:
             logger.info("[SpeedMode] Zap skipped: intensity=0")
             self._measuring = False
@@ -238,6 +241,7 @@ class SpeedModeHandler:
             "zap_fired":      self._zap_fired,
             "origin_stretch": self._origin_stretch,
             "peak_stretch":   self._peak_stretch,
+            "delta":          self._peak_stretch - self._origin_stretch,
             "current_stretch": current_stretch,
             "recent_speed":   self._calc_recent_speed(),
             "stop_detecting": self._stop_start_time is not None,

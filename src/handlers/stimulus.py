@@ -30,8 +30,15 @@ class StimulusHandler:
     # イベントハンドラ                                                     #
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _is_active() -> bool:
+        import settings as s_mod
+        return s_mod.settings.device.zap_mode == "stretch"
+
     def _on_grab_start(self) -> None:
         """Grab 開始時：常にバイブレーションを送信する。"""
+        if not self._is_active():
+            return
         from config import (
             GRAB_START_VIBRATION_INTENSITY, GRAB_START_VIBRATION_COUNT,
             GRAB_START_VIBRATION_TON, GRAB_START_VIBRATION_TOFF,
@@ -47,6 +54,8 @@ class StimulusHandler:
 
     def _on_grab_end(self, stretch: float, duration: float) -> None:
         """Grab 終了時：MIN_GRAB_DURATION 以上なら刺激を送信する。"""
+        if not self._is_active():
+            return
         from config import MIN_GRAB_DURATION, USE_VIBRATION
         from pavlok_controller import calculate_zap_intensity, normalize_intensity_for_display
         import pavlok_controller as ctrl
@@ -73,6 +82,8 @@ class StimulusHandler:
 
     def _on_threshold_crossed(self, stretch: float) -> None:
         """Stretch が閾値を超えた：警告バイブレーションを送信する。"""
+        if not self._is_active():
+            return
         from config import (
             VIBRATION_ON_STRETCH_INTENSITY, VIBRATION_ON_STRETCH_COUNT,
             VIBRATION_ON_STRETCH_TON, VIBRATION_ON_STRETCH_TOFF,

@@ -72,6 +72,12 @@ class SettingsTab(ttk.Frame):
         self._add_combo_item(basic_frame, "ZAP_MODE", "Zap モード",
                              ["stretch", "speed"], "stretch", row=3,
                              desc="stretch=引っ張り量 / speed=引っ張り速度（再起動で反映）")
+        self.setting_widgets["ZAP_MODE"]["var"].trace_add("write", self._on_zap_mode_change)
+        self._add_combo_item(basic_frame, "CONTROL_MODE", "制御モード",
+                             ["ble", "api"], "ble", row=4,
+                             desc="ble=Bluetooth直接制御 / api=クラウド API（再起動で反映）")
+        self._add_bool_item(basic_frame, "USE_VIBRATION", "バイブレーションモード", False, row=5,
+                            desc="ON=バイブ / OFF=Zap（再起動で反映）")
 
         # ===== 詳細設定 トグル =====
         self._toggle_btn = ttk.Button(
@@ -94,24 +100,28 @@ class SettingsTab(ttk.Frame):
         zap_frame = ttk.LabelFrame(parent, text="Zap 強度・閾値", padding=8)
         zap_frame.pack(fill="x", pady=(6, 4))
         self._add_spinbox_items(zap_frame, [
-            ("MIN_GRAB_DURATION", "掴み判定時間（秒）", "float", 0.8, 0.1, 10.0, 1, "これ未満の掴み時間では処理しません"),
-            ("MIN_STRETCH_THRESHOLD", "最小閾値", "float", 0.03, 0.0, 1.0, 1, "これ未満の引っ張り度は処理しません"),
-            ("VIBRATION_HYSTERESIS_OFFSET", "高出力警告のヒステリシス（％）", "float", 15, 0, 100, 100, "チャタリング防止"),
+            ("MIN_GRAB_DURATION",                "掴み判定時間（秒）",             "float", 0.8,  0.1, 10.0, 1,   "これ未満の掴み時間では処理しません"),
+            ("MIN_STRETCH_THRESHOLD",            "最小閾値",                      "float", 0.03, 0.0, 1.0,  1,   "これ未満の引っ張り度は処理しません"),
+            ("MIN_STRETCH_PLATEAU",              "プラトー閾値",                   "float", 0.12, 0.0, 1.0,  1,   "Grab終了時の最小有効 stretch"),
+            ("MAX_STRETCH_FOR_CALC",             "強度計算の入力上限",              "float", 0.8,  0.0, 2.0,  1,   "この値で最大強度に達する"),
+            ("NONLINEAR_SWITCH_POSITION_PERCENT","強度カーブの切替点（%）",         "int",   50,   1,   99,   1,   "入力範囲のうち何%で非線形に切り替えるか"),
+            ("INTENSITY_AT_SWITCH_PERCENT",      "切替点での強度（%）",             "int",   20,   1,   99,   1,   "切替点における出力強度の割合"),
+            ("VIBRATION_HYSTERESIS_OFFSET",      "高出力警告のヒステリシス（％）",   "float", 15,   0,   100,  100, "チャタリング防止"),
         ])
         # --- Speed モード ---
         speed_frame = ttk.LabelFrame(parent, text="Speed モード", padding=8)
         speed_frame.pack(fill="x", pady=(6, 4))
         self._add_spinbox_items(speed_frame, [
-            ("SPEED_GRAB_SETTLE_TIME",       "安定待機時間（秒）",           "float", 0.08, 0.0, 1.0,  1, "Grab 直後の無視時間"),
-            ("SPEED_ONSET_THRESHOLD",        "計測開始速度（stretch/秒）",   "float", 1.0,  0.0, 10.0, 1, "この速度を超えると計測開始"),
-            ("SPEED_ONSET_TICKS",            "onset 判定 tick 数",           "int",   5,    1,   50,   1, "onset 判定に使う直近エントリ数"),
-            ("INITIAL_SPEED_STRETCH_WINDOW", "初期速度区間（%）",            "int",   50,   1,   100,  1, "初期速度チェックの対象区間"),
-            ("SPEED_ZAP_THRESHOLD",          "初期速度閾値（stretch/秒）",   "float", 1.5,  0.0, 10.0, 1, "初期区間の平均速度下限"),
-            ("MIN_SPEED_EVAL_WINDOW",        "総合速度区間（%）",            "int",   90,   1,   100,  1, "総合速度チェックの対象区間"),
-            ("MIN_SPEED_THRESHOLD",          "総合速度閾値（stretch/秒）",   "float", 0.5,  0.0, 10.0, 1, "全体平均速度下限"),
-            ("SPEED_STOP_THRESHOLD",         "停止判定速度（stretch/秒）",   "float", 0.1,  0.0, 5.0,  1, "この速度以下で停止とみなす"),
-            ("SPEED_ZAP_HOLD_TIME",          "停止→発火待機（秒）",         "float", 0.3,  0.0, 2.0,  1, "停止検知から Zap までの待機"),
-            ("ZAP_RESET_PULLBACK",           "リセット戻し量（%）",          "int",   30,   1,   100,  1, "Zap 後に再発火を許可する戻し割合"),
+            ("SPEED_GRAB_SETTLE_TIME",       "安定待機時間（秒）",           "float", 0.08, 0.0, 1.0,  1, "Grab 直後の無視時間",          0.01),
+            ("SPEED_ONSET_TICKS",            "開始判定 tick 数",           "int",   5,    1,   50,   1, "判定に使う直近エントリ数"),
+            ("SPEED_ONSET_THRESHOLD",        "計測開始速度（stretch/秒）",   "float", 1.0,  0.0, 10.0, 1, "この速度を超えると計測開始",    0.01),
+            ("INITIAL_SPEED_STRETCH_WINDOW", "初速度計測の区間（%）",        "int",   50,   1,   100,  1, "初速度チェックの対象区間"),
+            ("SPEED_ZAP_THRESHOLD",          "初速度閾値（stretch/秒）",     "float", 1.5,  0.0, 10.0, 1, "これ未満の初速度は処理しません", 0.01),
+            ("MIN_SPEED_EVAL_WINDOW",        "全体速度計測の区間（%）",      "int",   90,   1,   100,  1, "全体速度チェックの対象区間"),
+            ("MIN_SPEED_THRESHOLD",          "全体速度閾値（stretch/秒）",   "float", 0.5,  0.0, 10.0, 1, "これ未満の平均速度は処理しません", 0.01),
+            ("SPEED_STOP_THRESHOLD",         "停止判定の速度（stretch/秒）", "float", 0.1,  0.0, 5.0,  1, "この速度以下で停止扱い",       0.01),
+            ("SPEED_ZAP_HOLD_TIME",          "発火判定時間（秒）",           "float", 0.3,  0.0, 2.0,  1, "停止検知から Zap までの判定時間", 0.01),
+            ("ZAP_RESET_PULLBACK",           "リセット戻し量（%）",          "int",   30,   1,   100,  1, "Zap 後に再発火を許可する戻しの割合"),
         ])
 
         # --- 掴み開始バイブ ---
@@ -125,7 +135,7 @@ class SettingsTab(ttk.Frame):
         ])
 
         # --- 警告バイブ ---
-        sv_frame = ttk.LabelFrame(parent, text="高出力の警告バイブ", padding=8)
+        sv_frame = ttk.LabelFrame(parent, text="高出力の警告バイブ（stretch のみ）", padding=8)
         sv_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(sv_frame, [
             ("VIBRATION_ON_STRETCH_INTENSITY", "強度（％）", "int", 80, 0, 100, 1, ""),
@@ -139,10 +149,15 @@ class SettingsTab(ttk.Frame):
         osc_frame.pack(fill="x", pady=4)
         self._add_spinbox_items(osc_frame, [
             ("OSC_LISTEN_PORT", "受信ポート", "int", 9001, 1024, 65535, 1, "VRChat からの OSC 受信ポート"),
-            ("OSC_SEND_PORT", "送信ポート", "int", 9000, 1024, 65535, 1, "VRChat への OSC 送信ポート"),
+            ("OSC_SEND_PORT",   "送信ポート", "int", 9000, 1024, 65535, 1, "VRChat への OSC 送信ポート"),
         ])
-        # Zap予測値関連
         row = 2
+        self._add_entry_item(osc_frame, "OSC_SEND_IP", "送信先 IP", "127.0.0.1", row=row, desc="通常は 127.0.0.1")
+        row += 1
+        self._add_entry_item(osc_frame, "OSC_PB_PREFIX", "PB コンポーネント名", "ShockPB", row=row,
+                             desc="_Stretch / _IsGrabbed 等のサフィックスは自動付与", width=20)
+        row += 1
+        # Zap予測値関連
         self._add_bool_item(osc_frame, "SEND_REALTIME_CHATBOX", "掴み中の Zap 予測値", True,
                             row=row, desc="Zap の予測値をリアルタイム表示")
         row += 1
@@ -196,8 +211,12 @@ class SettingsTab(ttk.Frame):
             key, label, value_type, default, min_val, max_val = item[:6]
             display_scale = item[6] if len(item) > 6 else 1
             desc = item[7] if len(item) > 7 else ""
+            custom_inc = item[8] if len(item) > 8 else None
             ttk.Label(parent, text=label, width=self._LABEL_WIDTH).grid(row=i, column=0, sticky="w", pady=3)
-            inc = 1 if value_type == "int" else 0.1
+            if custom_inc is not None:
+                inc = custom_inc
+            else:
+                inc = 1 if value_type == "int" else 0.1
             spinbox = ttk.Spinbox(parent, from_=min_val, to=max_val, width=8, increment=inc)
             spinbox.insert(0, str(default))
             spinbox.grid(row=i, column=1, sticky="w", padx=5, pady=3)
@@ -209,6 +228,23 @@ class SettingsTab(ttk.Frame):
                 "widget": spinbox, "type": value_type, "label": label,
                 "display_scale": display_scale,
             }
+
+    @staticmethod
+    def _extract_pb_prefix(stretch_param: str) -> str:
+        """'/avatar/parameters/ShockPB_Stretch' → 'ShockPB'"""
+        name = stretch_param.rsplit("/", 1)[-1]  # 'ShockPB_Stretch'
+        return name.removesuffix("_Stretch")
+
+    def _add_entry_item(self, parent, key, label, default: str, row: int, desc: str = "", width: int = 36):
+        ttk.Label(parent, text=label, width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
+        var = tk.StringVar(value=default)
+        entry = ttk.Entry(parent, textvariable=var, width=width)
+        entry.grid(row=row, column=1, columnspan=1, sticky="w", padx=5, pady=3)
+        if desc:
+            ttk.Label(parent, text=desc, foreground="gray").grid(
+                row=row, column=2, sticky="w", padx=(0, 8), pady=3
+            )
+        self.setting_widgets[key] = {"widget": entry, "type": "str", "label": label, "var": var}
 
     def _add_combo_item(self, parent, key, label, values: list[str], default: str, row: int, desc: str = ""):
         ttk.Label(parent, text=label, width=self._LABEL_WIDTH).grid(row=row, column=0, sticky="w", pady=3)
@@ -233,6 +269,57 @@ class SettingsTab(ttk.Frame):
         self.setting_widgets[key] = {"widget": cb, "type": "bool", "label": label, "var": var}
 
     # ------------------------------------------------------------------ #
+    #  Zap モード切替
+    # ------------------------------------------------------------------ #
+
+    # stretch のみ有効なウィジェットキー
+    _STRETCH_ONLY_KEYS = (
+        "VIBRATION_ON_STRETCH_THRESHOLD",
+        "VIBRATION_HYSTERESIS_OFFSET",
+        "VIBRATION_ON_STRETCH_INTENSITY",
+        "VIBRATION_ON_STRETCH_COUNT",
+        "VIBRATION_ON_STRETCH_TON",
+        "VIBRATION_ON_STRETCH_TOFF",
+    )
+
+    def _on_zap_mode_change(self, *_):
+        mode = self.setting_widgets["ZAP_MODE"]["var"].get()
+        self._apply_mode_visibility(mode)
+
+    def _apply_mode_visibility(self, mode: str):
+        is_speed = (mode == "speed")
+
+        # stretch のみ項目をグレーアウト
+        stretch_state = "disabled" if is_speed else "normal"
+        for key in self._STRETCH_ONLY_KEYS:
+            info = self.setting_widgets.get(key)
+            if info is None:
+                continue
+            w = info.get("widget")
+            if w:
+                try:
+                    w.config(state=stretch_state)
+                except Exception:
+                    pass
+
+        # speed のみ項目をグレーアウト
+        speed_state = "normal" if is_speed else "disabled"
+        speed_keys = [k for k in self.setting_widgets if k.startswith("SPEED_") or k in (
+            "INITIAL_SPEED_STRETCH_WINDOW", "MIN_SPEED_EVAL_WINDOW",
+            "MIN_SPEED_THRESHOLD", "ZAP_RESET_PULLBACK",
+        )]
+        for key in speed_keys:
+            info = self.setting_widgets.get(key)
+            if info is None:
+                continue
+            w = info.get("widget")
+            if w:
+                try:
+                    w.config(state=speed_state)
+                except Exception:
+                    pass
+
+    # ------------------------------------------------------------------ #
     #  トグル
     # ------------------------------------------------------------------ #
 
@@ -254,11 +341,17 @@ class SettingsTab(ttk.Frame):
         return {
             "MIN_STIMULUS_VALUE":             s.device.min_stimulus_value,
             "MAX_STIMULUS_VALUE":             s.device.max_stimulus_value,
-            "ZAP_MODE":                       s.device.zap_mode,
-            "MIN_GRAB_DURATION":              s.logic.min_grab_duration,
-            "MIN_STRETCH_THRESHOLD":          s.logic.min_stretch_threshold,
-            "VIBRATION_ON_STRETCH_THRESHOLD": s.stretch_vibration.threshold,
-            "VIBRATION_HYSTERESIS_OFFSET":    s.stretch_vibration.hysteresis_offset,
+            "ZAP_MODE":                           s.device.zap_mode,
+            "CONTROL_MODE":                       s.device.control_mode,
+            "USE_VIBRATION":                      s.device.use_vibration,
+            "MIN_GRAB_DURATION":                  s.logic.min_grab_duration,
+            "MIN_STRETCH_THRESHOLD":              s.logic.min_stretch_threshold,
+            "MIN_STRETCH_PLATEAU":                s.logic.min_stretch_plateau,
+            "MAX_STRETCH_FOR_CALC":               s.logic.max_stretch_for_calc,
+            "NONLINEAR_SWITCH_POSITION_PERCENT":  s.logic.nonlinear_switch_position_percent,
+            "INTENSITY_AT_SWITCH_PERCENT":        s.logic.intensity_at_switch_percent,
+            "VIBRATION_ON_STRETCH_THRESHOLD":     s.stretch_vibration.threshold,
+            "VIBRATION_HYSTERESIS_OFFSET":        s.stretch_vibration.hysteresis_offset,
             "GRAB_START_VIBRATION_INTENSITY": s.grab_start_vibration.intensity,
             "GRAB_START_VIBRATION_COUNT":     s.grab_start_vibration.count,
             "GRAB_START_VIBRATION_TON":       s.grab_start_vibration.ton,
@@ -274,8 +367,10 @@ class SettingsTab(ttk.Frame):
             "BLE_RECONNECT_INTERVAL":         s.ble.reconnect_interval,
             "BLE_KEEPALIVE_INTERVAL":         s.ble.keepalive_interval,
             "BLE_BATTERY_REFRESH_INTERVAL":   s.ble.battery_refresh_interval,
-            "OSC_LISTEN_PORT":                s.osc.listen_port,
-            "OSC_SEND_PORT":                  s.osc.send.port,
+            "OSC_LISTEN_PORT":                    s.osc.listen_port,
+            "OSC_SEND_PORT":                      s.osc.send.port,
+            "OSC_SEND_IP":                        s.osc.send.ip,
+            "OSC_PB_PREFIX":                      self._extract_pb_prefix(s.osc.stretch_param),
             "LOG_STRETCH":                    s.debug.log_stretch,
             "LOG_IS_GRABBED":                 s.debug.log_is_grabbed,
             "LOG_ANGLE":                      s.debug.log_angle,
@@ -304,12 +399,15 @@ class SettingsTab(ttk.Frame):
                     continue
                 if info["type"] == "bool":
                     info["var"].set(bool(value))
-                elif info["type"] == "combo":
+                elif info["type"] in ("combo", "str"):
                     info["var"].set(str(value))
                 else:
                     scale = info.get("display_scale", 1)
                     info["widget"].delete(0, "end")
                     info["widget"].insert(0, str(round(value * scale, 10)))
+            mode = self.setting_widgets.get("ZAP_MODE", {}).get("var")
+            if mode:
+                self._apply_mode_visibility(mode.get())
         except Exception as e:
             messagebox.showerror("エラー", f"設定の読み込みに失敗しました: {e}")
 
@@ -318,7 +416,7 @@ class SettingsTab(ttk.Frame):
         for key, info in self.setting_widgets.items():
             if info["type"] == "bool":
                 changed[key] = info["var"].get()
-            elif info["type"] == "combo":
+            elif info["type"] in ("combo", "str"):
                 changed[key] = info["var"].get()
             else:
                 value_str = info["widget"].get()
@@ -333,6 +431,14 @@ class SettingsTab(ttk.Frame):
                 except ValueError:
                     messagebox.showerror("エラー", f"{info['label']} の値が無効です: {value_str!r}")
                     return
+        # OSC_PB_PREFIX を4つの個別パラメータに展開
+        if "OSC_PB_PREFIX" in changed:
+            prefix = changed.pop("OSC_PB_PREFIX")
+            base = "/avatar/parameters"
+            changed["OSC_STRETCH_PARAM"]    = f"{base}/{prefix}_Stretch"
+            changed["OSC_IS_GRABBED_PARAM"] = f"{base}/{prefix}_IsGrabbed"
+            changed["OSC_ANGLE_PARAM"]      = f"{base}/{prefix}_Angle"
+            changed["OSC_IS_POSED_PARAM"]   = f"{base}/{prefix}_IsPosed"
         try:
             settings_module.save_user_settings(changed)
             messagebox.showinfo("成功", "設定を保存しました。\n次の操作から反映されます。")
@@ -351,11 +457,17 @@ class SettingsTab(ttk.Frame):
         defaults = {
             "MIN_STIMULUS_VALUE":             default_settings.device.min_stimulus_value,
             "MAX_STIMULUS_VALUE":             default_settings.device.max_stimulus_value,
-            "ZAP_MODE":                       default_settings.device.zap_mode,
-            "MIN_GRAB_DURATION":              default_settings.logic.min_grab_duration,
-            "MIN_STRETCH_THRESHOLD":          default_settings.logic.min_stretch_threshold,
-            "VIBRATION_ON_STRETCH_THRESHOLD": default_settings.stretch_vibration.threshold,
-            "VIBRATION_HYSTERESIS_OFFSET":    default_settings.stretch_vibration.hysteresis_offset,
+            "ZAP_MODE":                           default_settings.device.zap_mode,
+            "CONTROL_MODE":                       default_settings.device.control_mode,
+            "USE_VIBRATION":                      default_settings.device.use_vibration,
+            "MIN_GRAB_DURATION":                  default_settings.logic.min_grab_duration,
+            "MIN_STRETCH_THRESHOLD":              default_settings.logic.min_stretch_threshold,
+            "MIN_STRETCH_PLATEAU":                default_settings.logic.min_stretch_plateau,
+            "MAX_STRETCH_FOR_CALC":               default_settings.logic.max_stretch_for_calc,
+            "NONLINEAR_SWITCH_POSITION_PERCENT":  default_settings.logic.nonlinear_switch_position_percent,
+            "INTENSITY_AT_SWITCH_PERCENT":        default_settings.logic.intensity_at_switch_percent,
+            "VIBRATION_ON_STRETCH_THRESHOLD":     default_settings.stretch_vibration.threshold,
+            "VIBRATION_HYSTERESIS_OFFSET":        default_settings.stretch_vibration.hysteresis_offset,
             "GRAB_START_VIBRATION_INTENSITY": default_settings.grab_start_vibration.intensity,
             "GRAB_START_VIBRATION_COUNT":     default_settings.grab_start_vibration.count,
             "GRAB_START_VIBRATION_TON":       default_settings.grab_start_vibration.ton,
@@ -371,8 +483,10 @@ class SettingsTab(ttk.Frame):
             "BLE_RECONNECT_INTERVAL":         default_settings.ble.reconnect_interval,
             "BLE_KEEPALIVE_INTERVAL":         default_settings.ble.keepalive_interval,
             "BLE_BATTERY_REFRESH_INTERVAL":   default_settings.ble.battery_refresh_interval,
-            "OSC_LISTEN_PORT":                default_settings.osc.listen_port,
-            "OSC_SEND_PORT":                  default_settings.osc.send.port,
+            "OSC_LISTEN_PORT":                    default_settings.osc.listen_port,
+            "OSC_SEND_PORT":                      default_settings.osc.send.port,
+            "OSC_SEND_IP":                        default_settings.osc.send.ip,
+            "OSC_PB_PREFIX":                      self._extract_pb_prefix(default_settings.osc.stretch_param),
             "LOG_STRETCH":                    default_settings.debug.log_stretch,
             "LOG_IS_GRABBED":                 default_settings.debug.log_is_grabbed,
             "LOG_ANGLE":                      default_settings.debug.log_angle,
@@ -397,7 +511,7 @@ class SettingsTab(ttk.Frame):
             info = self.setting_widgets[key]
             if info["type"] == "bool":
                 info["var"].set(value)
-            elif info["type"] == "combo":
+            elif info["type"] in ("combo", "str"):
                 info["var"].set(str(value))
             else:
                 info["widget"].delete(0, "end")

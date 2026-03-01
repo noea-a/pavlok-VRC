@@ -64,14 +64,10 @@ def main():
     zap_recorder = ZapRecorder()
     machine.zap_recorder = zap_recorder  # tab_stats.py からのアクセス用
 
-    # ハンドラを生成してイベントを購読
-    from settings import settings as _s
-    if _s.device.zap_mode == "speed":
-        SpeedModeHandler(machine, status_queue)
-        logger.info("Zap mode: speed")
-    else:
-        StimulusHandler(machine, status_queue)
-        logger.info("Zap mode: stretch")
+    # ハンドラを生成してイベントを購読（両方登録し、実行時に zap_mode で分岐）
+    SpeedModeHandler(machine, status_queue)
+    StimulusHandler(machine, status_queue)
+    logger.info("Both zap handlers registered (mode switching at runtime)")
     ChatboxHandler(machine, OSCSender())
     RecorderHandler(machine, zap_recorder)
     GUIUpdater(machine, status_queue)

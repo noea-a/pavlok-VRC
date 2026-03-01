@@ -56,13 +56,6 @@ class TestTab(ttk.Frame):
         frame = ttk.LabelFrame(self._inner, text="強度プレビュー", padding=10)
         frame.pack(fill="x", padx=10, pady=(10, 5))
 
-        # モード表示
-        mode_frame = ttk.Frame(frame)
-        mode_frame.pack(fill="x", pady=(0, 6))
-        ttk.Label(mode_frame, text="intensity_mode:", width=18).pack(side="left")
-        self._preview_mode_label = ttk.Label(mode_frame, text="—", foreground="#555")
-        self._preview_mode_label.pack(side="left")
-
         # Stretch スライダー
         s_frame = ttk.Frame(frame)
         s_frame.pack(fill="x", pady=3)
@@ -74,18 +67,6 @@ class TestTab(ttk.Frame):
             side="left", fill="x", expand=True, padx=5)
         self._preview_stretch_label = ttk.Label(s_frame, text="0.500", width=6)
         self._preview_stretch_label.pack(side="left")
-
-        # Speed スライダー
-        sp_frame = ttk.Frame(frame)
-        sp_frame.pack(fill="x", pady=3)
-        ttk.Label(sp_frame, text="Speed (stretch/s):", width=18).pack(side="left")
-        self._preview_speed_var = tk.DoubleVar(value=0.0)
-        self._preview_speed_scale = ttk.Scale(sp_frame, from_=0.0, to=5.0, orient="horizontal",
-                                              variable=self._preview_speed_var,
-                                              command=lambda _: self._update_intensity_preview())
-        self._preview_speed_scale.pack(side="left", fill="x", expand=True, padx=5)
-        self._preview_speed_label = ttk.Label(sp_frame, text="0.00", width=6)
-        self._preview_speed_label.pack(side="left")
 
         # 結果表示
         result_frame = ttk.Frame(frame)
@@ -100,36 +81,11 @@ class TestTab(ttk.Frame):
         self._update_intensity_preview()
 
     def _update_intensity_preview(self):
-        import settings as s_mod
-        s = s_mod.settings
         cfg = IntensityConfig.from_settings()
-        mode = s.logic.intensity_mode
-
         stretch = self._preview_stretch_var.get()
-        speed = self._preview_speed_var.get()
-
         self._preview_stretch_label.config(text=f"{stretch:.3f}")
-        self._preview_speed_label.config(text=f"{speed:.2f}")
-        self._preview_mode_label.config(text=mode)
 
-        # effective_stretch を計算（handlers/stimulus.py と同ロジック）
-        max_stretch = cfg.max_stretch_for_calc
-        max_speed = s.logic.max_speed_for_calc
-
-        if mode == "speed":
-            speed_score = min(speed / max_speed, 1.0) if max_speed > 0 else 0.0
-            effective_stretch = speed_score * max_stretch
-        elif mode == "combined":
-            stretch_score = min(stretch / max_stretch, 1.0) if max_stretch > 0 else 0.0
-            speed_score = min(speed / max_speed, 1.0) if max_speed > 0 else 0.0
-            effective_stretch = (
-                s.logic.stretch_weight * stretch_score
-                + s.logic.speed_weight * speed_score
-            ) * max_stretch
-        else:  # stretch
-            effective_stretch = stretch
-
-        intensity = calculate_intensity(effective_stretch, cfg)
+        intensity = calculate_intensity(stretch, cfg)
         display = normalize_for_display(intensity, cfg) if intensity > 0 else 0
 
         if intensity == 0:
@@ -138,8 +94,7 @@ class TestTab(ttk.Frame):
         else:
             self._preview_result_label.config(
                 text=f"内部値: {intensity}  /  表示: {display}%", foreground="#0066cc")
-            self._preview_effective_label.config(
-                text=f"(effective_stretch={effective_stretch:.3f})", foreground="gray")
+            self._preview_effective_label.config(text="")
 
     # ------------------------------------------------------------------ #
     # 単体テストセクション                                                 #

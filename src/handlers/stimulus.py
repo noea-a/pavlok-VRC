@@ -89,40 +89,11 @@ class StimulusHandler:
         )
 
     def _resolve_intensity(self, stretch: float) -> int:
-        """intensity_mode に応じて effective_stretch を算出し、強度を返す。"""
+        """stretch から強度を算出する。"""
         from intensity import calculate_intensity, IntensityConfig
-        import settings as s_mod
         cfg = IntensityConfig.from_settings()
-        s = s_mod.settings
-        mode = s.logic.intensity_mode
-        max_stretch = cfg.max_stretch_for_calc
-
-        if mode == "speed":
-            max_speed = s.logic.max_speed_for_calc
-            speed = self._machine.get_max_speed()
-            speed_score = min(speed / max_speed, 1.0) if max_speed > 0 else 0.0
-            effective_stretch = speed_score * max_stretch
-            logger.info(f"[Stimulus] mode=speed speed={speed:.3f} effective_stretch={effective_stretch:.3f}")
-
-        elif mode == "combined":
-            max_speed = s.logic.max_speed_for_calc
-            speed = self._machine.get_max_speed()
-            stretch_score = min(stretch / max_stretch, 1.0) if max_stretch > 0 else 0.0
-            speed_score = min(speed / max_speed, 1.0) if max_speed > 0 else 0.0
-            effective_stretch = (
-                s.logic.stretch_weight * stretch_score
-                + s.logic.speed_weight * speed_score
-            ) * max_stretch
-            logger.info(
-                f"[Stimulus] mode=combined stretch_score={stretch_score:.3f} "
-                f"speed_score={speed_score:.3f} effective_stretch={effective_stretch:.3f}"
-            )
-
-        else:  # "stretch"
-            effective_stretch = stretch
-            logger.info(f"[Stimulus] mode=stretch effective_stretch={effective_stretch:.3f}")
-
-        return calculate_intensity(effective_stretch, cfg)
+        logger.info(f"[Stimulus] stretch={stretch:.3f}")
+        return calculate_intensity(stretch, cfg)
 
     # ------------------------------------------------------------------ #
     # 内部                                                                 #

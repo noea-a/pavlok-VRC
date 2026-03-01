@@ -44,6 +44,9 @@ class GrabStateMachine:
         # --- GUI サービス参照（tab_stats.py から読まれる） ---
         self.zap_recorder = None
 
+        # --- Speed モード内部状態（SpeedModeHandler が更新、tab_test.py が読む） ---
+        self.speed_mode_state: dict = {}
+
         # --- イベントコールバックリスト ---
         self._on_grab_start: list[Event] = []
         self._on_grab_end: list[Event] = []          # (stretch: float, duration: float)

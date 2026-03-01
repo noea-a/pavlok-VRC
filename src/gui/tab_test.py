@@ -14,6 +14,7 @@ class TestTab(ttk.Frame):
         self.grab_state = None
         self.test_stretch_var = tk.DoubleVar(value=0.0)
         self._ble_counter = 0
+        self._polling = False
 
         # スクロール可能なコンテナ
         scrollbar = ttk.Scrollbar(self, orient="vertical")
@@ -27,10 +28,12 @@ class TestTab(ttk.Frame):
             scrollregion=(0, 0, e.width, e.height)))
         self._canvas.bind("<Configure>", lambda e: self._canvas.itemconfig(self._inner_id, width=e.width))
 
+        self._create_realtime_panel()
         self._create_intensity_preview_panel()
         self._create_unit_test_panel()
         self._create_ble_raw_panel()
         self._create_grab_sim_panel()
+        self._start_poll()
 
     def enable_scroll(self):
         self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
@@ -47,6 +50,214 @@ class TestTab(ttk.Frame):
 
     def set_grab_state(self, grab_state):
         self.grab_state = grab_state
+
+    # ------------------------------------------------------------------ #
+    # リアルタイム状態パネル                                               #
+    # ------------------------------------------------------------------ #
+
+    def _create_realtime_panel(self):
+        frame = ttk.LabelFrame(self._inner, text="リアルタイム状態", padding=10)
+        frame.pack(fill="x", padx=10, pady=(10, 5))
+
+        # --- 基本状態 ---
+        basic = ttk.Frame(frame)
+        basic.pack(fill="x")
+
+        # Grab 状態
+        row0 = ttk.Frame(basic)
+        row0.pack(fill="x", pady=2)
+        ttk.Label(row0, text="Grab:", width=16).pack(side="left")
+        self._rt_grab_label = ttk.Label(row0, text="—", width=10)
+        self._rt_grab_label.pack(side="left")
+
+        # Stretch
+        row1 = ttk.Frame(basic)
+        row1.pack(fill="x", pady=2)
+        ttk.Label(row1, text="Stretch:", width=16).pack(side="left")
+        self._rt_stretch_label = ttk.Label(row1, text="—", width=8)
+        self._rt_stretch_label.pack(side="left")
+        self._rt_stretch_bar = ttk.Progressbar(row1, maximum=100, length=180)
+        self._rt_stretch_bar.pack(side="left", padx=6)
+
+        # 計算強度
+        row2 = ttk.Frame(basic)
+        row2.pack(fill="x", pady=2)
+        ttk.Label(row2, text="計算強度:", width=16).pack(side="left")
+        self._rt_intensity_label = ttk.Label(
+            row2, text="—", width=16, font=("", 11, "bold"), foreground="#0066cc")
+        self._rt_intensity_label.pack(side="left")
+        self._rt_intensity_bar = ttk.Progressbar(row2, maximum=100, length=180)
+        self._rt_intensity_bar.pack(side="left", padx=6)
+
+        # 最終 Zap
+        row3 = ttk.Frame(basic)
+        row3.pack(fill="x", pady=2)
+        ttk.Label(row3, text="最終 Zap:", width=16).pack(side="left")
+        self._rt_last_zap_label = ttk.Label(row3, text="—", foreground="#cc3300")
+        self._rt_last_zap_label.pack(side="left")
+
+        ttk.Separator(frame, orient="horizontal").pack(fill="x", pady=(8, 4))
+
+        # --- Speed モード詳細（speed モード時のみ表示） ---
+        self._speed_detail_frame = ttk.LabelFrame(frame, text="Speed モード詳細", padding=6)
+        # pack は _poll_realtime で条件判定して制御
+
+        sg = ttk.Frame(self._speed_detail_frame)
+        sg.pack(fill="x")
+
+        self._sd_labels = {}
+        rows = [
+            ("mode_state",    "状態:"),
+            ("origin",        "原点 Stretch:"),
+            ("peak",          "Peak Stretch:"),
+            ("recent_speed",  "直近速度 (s/s):"),
+            ("history",       "履歴:"),
+        ]
+        for i, (key, text) in enumerate(rows):
+            ttk.Label(sg, text=text, width=18).grid(row=i, column=0, sticky="w", pady=2)
+            lbl = ttk.Label(sg, text="—", width=20)
+            lbl.grid(row=i, column=1, sticky="w", padx=4, pady=2)
+            self._sd_labels[key] = lbl
+
+        # stretch モード詳細
+        self._stretch_detail_frame = ttk.LabelFrame(frame, text="Stretch モード詳細", padding=6)
+
+        sh = ttk.Frame(self._stretch_detail_frame)
+        sh.pack(fill="x")
+        self._sh_labels = {}
+        srows = [
+            ("min_stretch", "有効 Stretch 最小:"),
+            ("max_stretch", "有効 Stretch 最大:"),
+            ("min_int",     "強度 最小 (内部値):"),
+            ("max_int",     "強度 最大 (内部値):"),
+            ("position",    "現在位置:"),
+        ]
+        for i, (key, text) in enumerate(srows):
+            ttk.Label(sh, text=text, width=18).grid(row=i, column=0, sticky="w", pady=2)
+            lbl = ttk.Label(sh, text="—", width=20)
+            lbl.grid(row=i, column=1, sticky="w", padx=4, pady=2)
+            self._sh_labels[key] = lbl
+
+    def _start_poll(self):
+        self._polling = True
+        self._poll_realtime()
+
+    def _poll_realtime(self):
+        if not self._polling:
+            return
+        try:
+            self._refresh_realtime()
+        except Exception:
+            pass
+        self.after(200, self._poll_realtime)
+
+    def _refresh_realtime(self):
+        gs = self.grab_state
+        if gs is None:
+            return
+
+        import settings as s_mod
+        from intensity import IntensityConfig, calculate_intensity, normalize_for_display
+
+        mode = s_mod.settings.device.zap_mode
+        cfg = IntensityConfig.from_settings()
+
+        # Grab 状態
+        if gs.is_grabbed:
+            self._rt_grab_label.config(text="掴み中", foreground="#007700", font=("", 10, "bold"))
+        else:
+            self._rt_grab_label.config(text="未掴み", foreground="#555555", font=("", 10, ""))
+
+        # Stretch
+        stretch = gs.current_stretch
+        self._rt_stretch_label.config(text=f"{stretch:.3f}")
+        self._rt_stretch_bar["value"] = int(stretch * 100)
+
+        # 計算強度
+        if gs.is_grabbed:
+            intensity = calculate_intensity(stretch, cfg)
+            display = normalize_for_display(intensity, cfg) if intensity > 0 else 0
+            if intensity > 0:
+                self._rt_intensity_label.config(
+                    text=f"内部: {intensity}  /  {display}%", foreground="#0066cc")
+            else:
+                self._rt_intensity_label.config(text="0 (刺激なし)", foreground="gray")
+            self._rt_intensity_bar["value"] = display
+        else:
+            self._rt_intensity_label.config(text="—", foreground="gray")
+            self._rt_intensity_bar["value"] = 0
+
+        # 最終 Zap
+        d = gs.last_zap_display_intensity
+        a = gs.last_zap_actual_intensity
+        if d > 0:
+            self._rt_last_zap_label.config(text=f"表示: {d}%  /  内部値: {a}", foreground="#cc3300")
+        else:
+            self._rt_last_zap_label.config(text="—", foreground="gray")
+
+        # モード別詳細の切り替え
+        if mode == "speed":
+            self._stretch_detail_frame.pack_forget()
+            self._speed_detail_frame.pack(fill="x")
+            self._refresh_speed_detail(gs.speed_mode_state)
+        else:
+            self._speed_detail_frame.pack_forget()
+            self._stretch_detail_frame.pack(fill="x")
+            self._refresh_stretch_detail(stretch, cfg)
+
+    def _refresh_speed_detail(self, state: dict):
+        if not state:
+            for lbl in self._sd_labels.values():
+                lbl.config(text="—", foreground="gray")
+            return
+
+        # 状態文字列
+        if state.get("zap_fired"):
+            state_text = "Zap 済み（pullback 待ち）"
+            state_fg = "#cc3300"
+        elif state.get("measuring"):
+            if state.get("stop_detecting"):
+                state_text = "停止検知中"
+                state_fg = "#cc6600"
+            else:
+                state_text = "計測中"
+                state_fg = "#007700"
+        elif state.get("settled"):
+            state_text = "onset 待ち"
+            state_fg = "#555555"
+        else:
+            state_text = "settle 待ち"
+            state_fg = "#aaaaaa"
+
+        self._sd_labels["mode_state"].config(text=state_text, foreground=state_fg)
+        self._sd_labels["origin"].config(
+            text=f"{state.get('origin_stretch', 0):.3f}", foreground="black")
+        self._sd_labels["peak"].config(
+            text=f"{state.get('peak_stretch', 0):.3f}", foreground="black")
+        spd = state.get("recent_speed", 0)
+        spd_fg = "#007700" if spd > 0.5 else "black"
+        self._sd_labels["recent_speed"].config(text=f"{spd:.3f}", foreground=spd_fg)
+        self._sd_labels["history"].config(
+            text=f"{state.get('history_len', 0)} エントリ", foreground="gray")
+
+    def _refresh_stretch_detail(self, stretch: float, cfg):
+        from intensity import calculate_intensity, normalize_for_display
+        mn_s = cfg.min_stretch_for_calc
+        mx_s = cfg.max_stretch_for_calc
+        mn_i = calculate_intensity(mn_s, cfg)
+        mx_i = calculate_intensity(mx_s, cfg)
+        cur_i = calculate_intensity(stretch, cfg)
+
+        self._sh_labels["min_stretch"].config(text=f"{mn_s:.3f}")
+        self._sh_labels["max_stretch"].config(text=f"{mx_s:.3f}")
+        self._sh_labels["min_int"].config(text=str(mn_i))
+        self._sh_labels["max_int"].config(text=str(mx_i))
+        if mx_i > mn_i:
+            pct = int((cur_i - mn_i) / (mx_i - mn_i) * 100)
+            self._sh_labels["position"].config(
+                text=f"内部値 {cur_i}  ({pct}%)", foreground="#0066cc")
+        else:
+            self._sh_labels["position"].config(text=f"内部値 {cur_i}", foreground="black")
 
     # ------------------------------------------------------------------ #
     # 強度プレビューセクション                                             #

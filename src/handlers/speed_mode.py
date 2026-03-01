@@ -69,6 +69,7 @@ class SpeedModeHandler:
 
         # 履歴に追記
         self._history.append((now, stretch))
+        self._update_machine_state(stretch)
 
         # B. ZAP_RESET_PULLBACK 監視（_zap_fired=True のとき）
         if self._zap_fired:
@@ -225,6 +226,20 @@ class SpeedModeHandler:
         if total_time <= 0 or total_stretch <= 0:
             return 0.0
         return total_stretch / total_time
+
+    def _update_machine_state(self, current_stretch: float) -> None:
+        """machine.speed_mode_state に現在の内部状態を書き込む（tab_test が参照）"""
+        self._machine.speed_mode_state = {
+            "settled":        self._is_settled,
+            "measuring":      self._measuring,
+            "zap_fired":      self._zap_fired,
+            "origin_stretch": self._origin_stretch,
+            "peak_stretch":   self._peak_stretch,
+            "current_stretch": current_stretch,
+            "recent_speed":   self._calc_recent_speed(),
+            "stop_detecting": self._stop_start_time is not None,
+            "history_len":    len(self._history),
+        }
 
     def _get_settings(self):
         import settings as s_mod

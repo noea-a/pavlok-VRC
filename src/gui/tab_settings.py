@@ -69,6 +69,9 @@ class SettingsTab(ttk.Frame):
             ("MAX_STIMULUS_VALUE", "Zap の最大値（％）", "int", 70, 0, 100, 1, ""),
             ("VIBRATION_ON_STRETCH_THRESHOLD", "高出力の警告（％）", "float", 70, 0, 100, 100, "高出力の場合にバイブで警告します"),
         ])
+        self._add_combo_item(basic_frame, "ZAP_MODE", "Zap モード",
+                             ["stretch", "speed"], "stretch", row=3,
+                             desc="stretch=引っ張り量 / speed=引っ張り速度（再起動で反映）")
 
         # ===== 詳細設定 トグル =====
         self._toggle_btn = ttk.Button(
@@ -252,6 +255,7 @@ class SettingsTab(ttk.Frame):
         return {
             "MIN_STIMULUS_VALUE":             s.device.min_stimulus_value,
             "MAX_STIMULUS_VALUE":             s.device.max_stimulus_value,
+            "ZAP_MODE":                       s.device.zap_mode,
             "MIN_GRAB_DURATION":              s.logic.min_grab_duration,
             "MIN_STRETCH_THRESHOLD":          s.logic.min_stretch_threshold,
             "VIBRATION_ON_STRETCH_THRESHOLD": s.stretch_vibration.threshold,
@@ -349,6 +353,7 @@ class SettingsTab(ttk.Frame):
         defaults = {
             "MIN_STIMULUS_VALUE":             default_settings.device.min_stimulus_value,
             "MAX_STIMULUS_VALUE":             default_settings.device.max_stimulus_value,
+            "ZAP_MODE":                       default_settings.device.zap_mode,
             "MIN_GRAB_DURATION":              default_settings.logic.min_grab_duration,
             "MIN_STRETCH_THRESHOLD":          default_settings.logic.min_stretch_threshold,
             "VIBRATION_ON_STRETCH_THRESHOLD": default_settings.stretch_vibration.threshold,

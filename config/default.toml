@@ -72,6 +72,7 @@ hysteresis_offset = 0.15
 [device]
 control_mode = "ble"   # "api" または "ble"
 use_vibration = false  # false=Zap, true=Vibration
+zap_mode = "stretch"   # "stretch"=引っ張り量で Zap / "speed"=引っ張り速度で Zap
 min_stimulus_value = 15
 max_stimulus_value = 70
 

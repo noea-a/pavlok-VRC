@@ -121,6 +121,7 @@ class StretchVibrationSettings:
 class DeviceSettings:
     control_mode: str = "ble"
     use_vibration: bool = False
+    zap_mode: str = "stretch"  # "stretch" または "speed"
     min_stimulus_value: int = 15
     max_stimulus_value: int = 70
 
@@ -222,6 +223,7 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "VIBRATION_ON_STRETCH_COUNT":         ("stretch_vibration", "count"),
     "VIBRATION_ON_STRETCH_TON":           ("stretch_vibration", "ton"),
     "VIBRATION_ON_STRETCH_TOFF":          ("stretch_vibration", "toff"),
+    "ZAP_MODE":                           ("device", "zap_mode"),
     "OSC_SEND_INTERVAL":                  ("osc.send", "interval"),
     "SEND_REALTIME_CHATBOX":              ("osc.send", "realtime_chatbox"),
     "SEND_FINAL_CHATBOX":                 ("osc.send", "final_chatbox"),

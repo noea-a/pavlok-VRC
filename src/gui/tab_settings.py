@@ -111,7 +111,6 @@ class SettingsTab(ttk.Frame):
             ("MIN_SPEED_THRESHOLD",          "総合速度閾値（stretch/秒）",   "float", 0.5,  0.0, 10.0, 1, "全体平均速度下限"),
             ("SPEED_STOP_THRESHOLD",         "停止判定速度（stretch/秒）",   "float", 0.1,  0.0, 5.0,  1, "この速度以下で停止とみなす"),
             ("SPEED_ZAP_HOLD_TIME",          "停止→発火待機（秒）",         "float", 0.3,  0.0, 2.0,  1, "停止検知から Zap までの待機"),
-            ("MAX_ZAP_DURATION",             "最大計測時間（秒）",           "float", 1.0,  0.1, 10.0, 1, "超過で発火キャンセル"),
             ("ZAP_RESET_PULLBACK",           "リセット戻し量（%）",          "int",   30,   1,   100,  1, "Zap 後に再発火を許可する戻し割合"),
         ])
 
@@ -293,7 +292,6 @@ class SettingsTab(ttk.Frame):
             "MIN_SPEED_THRESHOLD":            s.speed_mode.min_speed_threshold,
             "SPEED_STOP_THRESHOLD":           s.speed_mode.speed_stop_threshold,
             "SPEED_ZAP_HOLD_TIME":            s.speed_mode.speed_zap_hold_time,
-            "MAX_ZAP_DURATION":               s.speed_mode.max_zap_duration,
             "ZAP_RESET_PULLBACK":             s.speed_mode.zap_reset_pullback,
         }
 
@@ -391,7 +389,6 @@ class SettingsTab(ttk.Frame):
             "MIN_SPEED_THRESHOLD":            default_settings.speed_mode.min_speed_threshold,
             "SPEED_STOP_THRESHOLD":           default_settings.speed_mode.speed_stop_threshold,
             "SPEED_ZAP_HOLD_TIME":            default_settings.speed_mode.speed_zap_hold_time,
-            "MAX_ZAP_DURATION":               default_settings.speed_mode.max_zap_duration,
             "ZAP_RESET_PULLBACK":             default_settings.speed_mode.zap_reset_pullback,
         }
         for key, value in defaults.items():

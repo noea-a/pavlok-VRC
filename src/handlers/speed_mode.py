@@ -104,14 +104,15 @@ class SpeedModeHandler:
         # 停止検知（stretch 方向のみ）
         recent_speed = self._calc_recent_speed()
         if recent_speed > sm.speed_stop_threshold:
-            # 動いている → タイマーリセット
-            if self._stop_start_time is not None:
-                self._cancel_stop_timer()
-                self._stop_start_time = None
+            # まだ動いている → タイマーをリスタート
+            # （更新が来なくなった時点から hold_time 後に発火チェックされる）
+            self._stop_start_time = now
+            self._start_stop_timer(sm.speed_zap_hold_time)
         else:
-            # 停止とみなす → 初回のみタイマー開始
-            if self._stop_start_time is None:
-                self._stop_start_time = now
+            # 停止とみなす → タイマーが切れていれば再起動
+            if self._stop_timer is None:
+                if self._stop_start_time is None:
+                    self._stop_start_time = now
                 self._start_stop_timer(sm.speed_zap_hold_time)
 
         self._update_machine_state(stretch)
@@ -139,7 +140,12 @@ class SpeedModeHandler:
         if not self._measuring or self._zap_fired:
             return
         self._stop_start_time = None
-        self._check_zap_fire(time.time(), self._get_settings())
+        try:
+            self._check_zap_fire(time.time(), self._get_settings())
+        except Exception as e:
+            logger.error(f"[SpeedMode] Error in stop timer: {e}", exc_info=True)
+            self._measuring = False
+            self._update_machine_state(self._peak_stretch)
 
     def _reset_origin(self, stretch: float, now: float) -> None:
         """原点をリセットして計測開始"""

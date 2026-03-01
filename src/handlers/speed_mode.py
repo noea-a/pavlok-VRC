@@ -40,7 +40,14 @@ class SpeedModeHandler:
     # イベントハンドラ                                                     #
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _is_active() -> bool:
+        import settings as s_mod
+        return s_mod.settings.device.zap_mode == "speed"
+
     def _on_grab_start(self) -> None:
+        if not self._is_active():
+            return
         self._cancel_stop_timer()
         self._grab_start_time = time.time()
         self._is_settled = False
@@ -53,6 +60,8 @@ class SpeedModeHandler:
         logger.debug("[SpeedMode] Grab started, settling...")
 
     def _on_grab_end(self, stretch: float, duration: float) -> None:
+        if not self._is_active():
+            return
         self._cancel_stop_timer()
         self._is_settled = False
         self._measuring = False
@@ -62,6 +71,8 @@ class SpeedModeHandler:
         logger.debug("[SpeedMode] Grab ended, state reset")
 
     def _on_stretch_update(self, stretch: float) -> None:
+        if not self._is_active():
+            return
         now = time.time()
         sm = self._get_settings()
 

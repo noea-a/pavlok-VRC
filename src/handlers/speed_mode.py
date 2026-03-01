@@ -53,6 +53,8 @@ class SpeedModeHandler:
         self._is_settled = False
         self._measuring = False
         self._zap_fired = False
+        self._peak_stretch = 0.0
+        self._update_machine_state(0.0)
         logger.debug("[SpeedMode] Grab ended, state reset")
 
     def _on_stretch_update(self, stretch: float) -> None:
@@ -181,6 +183,7 @@ class SpeedModeHandler:
         self._zap_fired = True
         self._zap_fire_stretch = self._peak_stretch
         self._measuring = False
+        self._update_machine_state(self._peak_stretch)
 
     # ------------------------------------------------------------------ #
     # 速度計算ヘルパー                                                     #

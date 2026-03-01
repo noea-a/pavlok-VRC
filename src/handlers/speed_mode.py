@@ -71,7 +71,6 @@ class SpeedModeHandler:
 
         # 履歴に追記
         self._history.append((now, stretch))
-        self._update_machine_state(stretch)
 
         # B. ZAP_RESET_PULLBACK 監視（_zap_fired=True のとき）
         if self._zap_fired:
@@ -82,6 +81,7 @@ class SpeedModeHandler:
                     logger.info(f"[SpeedMode] Pullback detected ({pullback_ratio:.2%}), resetting origin")
                     self._zap_fired = False
                     self._reset_origin(stretch, now)
+            self._update_machine_state(stretch)
             return  # Zap 済みは pullback 解除待ち
 
         # C. Onset 判定（_measuring=False のとき）
@@ -90,6 +90,7 @@ class SpeedModeHandler:
             if avg_speed > sm.speed_onset_threshold:
                 logger.info(f"[SpeedMode] Onset detected (avg_speed={avg_speed:.3f}), starting measurement")
                 self._reset_origin(stretch, now)
+            self._update_machine_state(stretch)
             return
 
         # D. _measuring=True のとき
@@ -107,6 +108,8 @@ class SpeedModeHandler:
                 self._check_zap_fire(now, sm)
                 self._stop_start_time = None
 
+        self._update_machine_state(stretch)
+
     # ------------------------------------------------------------------ #
     # 内部ロジック                                                         #
     # ------------------------------------------------------------------ #
@@ -120,6 +123,7 @@ class SpeedModeHandler:
         self._stop_start_time = None
         self._history.clear()
         self._history.append((now, stretch))
+        self._update_machine_state(stretch)
 
     def _check_zap_fire(self, now: float, sm) -> None:
         """発火条件チェック。全通過で Zap 発火。"""
@@ -128,12 +132,14 @@ class SpeedModeHandler:
         if elapsed > sm.max_zap_duration:
             logger.info(f"[SpeedMode] Cancel: max duration exceeded ({elapsed:.2f}s > {sm.max_zap_duration}s)")
             self._measuring = False
+            self._update_machine_state(self._peak_stretch)
             return
 
         stretch_range = self._peak_stretch - self._origin_stretch
         if stretch_range <= 0:
             logger.info("[SpeedMode] Cancel: no stretch movement")
             self._measuring = False
+            self._update_machine_state(self._peak_stretch)
             return
 
         # ② INITIAL_SPEED_STRETCH_WINDOW 区間の速度チェック
@@ -142,6 +148,7 @@ class SpeedModeHandler:
         if initial_avg < sm.speed_zap_threshold:
             logger.info(f"[SpeedMode] Cancel: initial speed too low ({initial_avg:.3f} < {sm.speed_zap_threshold})")
             self._measuring = False
+            self._update_machine_state(self._peak_stretch)
             return
 
         # ③ MIN_SPEED_EVAL_WINDOW 区間の速度チェック
@@ -150,6 +157,7 @@ class SpeedModeHandler:
         if eval_avg < sm.min_speed_threshold:
             logger.info(f"[SpeedMode] Cancel: eval speed too low ({eval_avg:.3f} < {sm.min_speed_threshold})")
             self._measuring = False
+            self._update_machine_state(self._peak_stretch)
             return
 
         # 全チェック通過 → Zap 発火

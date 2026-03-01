@@ -5,7 +5,6 @@ from tkinter import ttk
 
 import pavlok_controller as stimulus_controller
 import config
-from intensity import IntensityConfig, calculate_intensity, normalize_for_display
 
 
 class TestTab(ttk.Frame):
@@ -30,7 +29,6 @@ class TestTab(ttk.Frame):
         self._canvas.bind("<Configure>", lambda e: self._canvas.itemconfig(self._inner_id, width=e.width))
 
         self._create_realtime_panel()
-        self._create_intensity_preview_panel()
         self._create_unit_test_panel()
         self._create_ble_raw_panel()
         self._create_grab_sim_panel()
@@ -60,8 +58,8 @@ class TestTab(ttk.Frame):
         # Grab 状態
         row0 = ttk.Frame(basic)
         row0.pack(fill="x", pady=2)
-        ttk.Label(row0, text="Grab:", width=16).pack(side="left")
-        self._rt_grab_label = ttk.Label(row0, text="—", width=10)
+        ttk.Label(row0, text="掴み状態:", width=16).pack(side="left")
+        self._rt_grab_label = ttk.Label(row0, text="False", foreground="blue", width=10)
         self._rt_grab_label.pack(side="left")
 
         # Stretch
@@ -165,9 +163,9 @@ class TestTab(ttk.Frame):
 
         # Grab 状態
         if gs.is_grabbed:
-            self._rt_grab_label.config(text="掴み中", foreground="#007700", font=("", 10, "bold"))
+            self._rt_grab_label.config(text="True", foreground="red")
         else:
-            self._rt_grab_label.config(text="未掴み", foreground="#555555", font=("", 10, ""))
+            self._rt_grab_label.config(text="False", foreground="blue")
 
         # Stretch
         stretch = gs.current_stretch
@@ -219,7 +217,7 @@ class TestTab(ttk.Frame):
 
         # 状態文字列
         if state.get("zap_fired"):
-            state_text = "Zap 済み（pullback 待ち）"
+            state_text = "Zap 済み"
             state_fg = "#cc3300"
         elif state.get("measuring"):
             if state.get("stop_detecting"):
@@ -242,7 +240,7 @@ class TestTab(ttk.Frame):
             text=f"{state.get('peak_stretch', 0):.3f}", foreground="black")
         delta = state.get("delta", 0)
         self._sd_labels["delta"].config(
-            text=f"{delta:.3f}  ← 強度計算に使用", foreground="#0055aa")
+            text=f"{delta:.3f}", foreground="#0055aa")
         spd = state.get("recent_speed", 0)
         spd_fg = "#007700" if spd > 0.5 else "black"
         self._sd_labels["recent_speed"].config(text=f"{spd:.3f}", foreground=spd_fg)
@@ -267,54 +265,6 @@ class TestTab(ttk.Frame):
                 text=f"内部値 {cur_i}  ({pct}%)", foreground="#0066cc")
         else:
             self._sh_labels["position"].config(text=f"内部値 {cur_i}", foreground="black")
-
-    # ------------------------------------------------------------------ #
-    # 強度プレビューセクション                                             #
-    # ------------------------------------------------------------------ #
-
-    def _create_intensity_preview_panel(self):
-        frame = ttk.LabelFrame(self._inner, text="強度プレビュー", padding=10)
-        frame.pack(fill="x", padx=10, pady=(10, 5))
-
-        # Stretch スライダー
-        s_frame = ttk.Frame(frame)
-        s_frame.pack(fill="x", pady=3)
-        ttk.Label(s_frame, text="Stretch:", width=18).pack(side="left")
-        self._preview_stretch_var = tk.DoubleVar(value=0.5)
-        ttk.Scale(s_frame, from_=0.0, to=1.0, orient="horizontal",
-                  variable=self._preview_stretch_var,
-                  command=lambda _: self._update_intensity_preview()).pack(
-            side="left", fill="x", expand=True, padx=5)
-        self._preview_stretch_label = ttk.Label(s_frame, text="0.500", width=6)
-        self._preview_stretch_label.pack(side="left")
-
-        # 結果表示
-        result_frame = ttk.Frame(frame)
-        result_frame.pack(fill="x", pady=(8, 2))
-        ttk.Label(result_frame, text="計算結果:").pack(side="left")
-        self._preview_result_label = ttk.Label(
-            result_frame, text="—", font=("", 14, "bold"), foreground="#0066cc")
-        self._preview_result_label.pack(side="left", padx=12)
-        self._preview_effective_label = ttk.Label(result_frame, text="", foreground="gray")
-        self._preview_effective_label.pack(side="left")
-
-        self._update_intensity_preview()
-
-    def _update_intensity_preview(self):
-        cfg = IntensityConfig.from_settings()
-        stretch = self._preview_stretch_var.get()
-        self._preview_stretch_label.config(text=f"{stretch:.3f}")
-
-        intensity = calculate_intensity(stretch, cfg)
-        display = normalize_for_display(intensity, cfg) if intensity > 0 else 0
-
-        if intensity == 0:
-            self._preview_result_label.config(text="0  (刺激なし)", foreground="gray")
-            self._preview_effective_label.config(text="")
-        else:
-            self._preview_result_label.config(
-                text=f"内部値: {intensity}  /  表示: {display}%", foreground="#0066cc")
-            self._preview_effective_label.config(text="")
 
     # ------------------------------------------------------------------ #
     # 単体テストセクション                                                 #

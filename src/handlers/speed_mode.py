@@ -144,15 +144,17 @@ class SpeedModeHandler:
     def _reset_origin(self, stretch: float, now: float) -> None:
         """原点をリセットして計測開始"""
         self._cancel_stop_timer()
-        self._stop_start_time = None
         self._origin_stretch = stretch
         self._origin_time = now
         self._measuring = True
         self._peak_stretch = stretch
-        self._stop_start_time = None
+        self._stop_start_time = now
         self._history.clear()
         self._history.append((now, stretch))
         self._update_machine_state(stretch)
+        # onset 直後からタイマーをスタート。
+        # 次の更新で速度が高ければキャンセルされ、更新が来なければそのまま発火チェック。
+        self._start_stop_timer(self._get_settings().speed_zap_hold_time)
 
     def _check_zap_fire(self, now: float, sm) -> None:
         """発火条件チェック。全通過で Zap 発火。"""

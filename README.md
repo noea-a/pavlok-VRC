@@ -1,11 +1,11 @@
 # VRChat Pavlok Connector
 
-VRChat内のPhysBoneを伸ばして離すと、Pavlok（電撃デバイス）が発動するシステムです。
+VRChat内のPhysBoneを伸ばすと、Pavlok（電撃デバイス）が発動するシステムです。
 
 ## 必要なもの
 
 - Windows PC
-- Python 3.8 以上
+- Python 3.11 以上
 - Pavlok 3
 - VRChat アカウント・対応アバター
 
@@ -21,21 +21,19 @@ VRChat内のPhysBoneを伸ばして離すと、Pavlok（電撃デバイス）が
 
 対象の PhysBone に以下の設定を追加してください：
 
-1. PhysBone のパラメータに `ShockPB` を割り当てる
+1. PhysBone のパラメータ名に `ShockPB` を割り当てる
 2. PhysBone を掴めるように設定（Allow Grabbing）
+
+## できること
+
+- **stretch モード** — Grab を離したときの引っ張り量に応じて Zap 強度を決定
+- **speed モード** — 素早い引っ張り動作を検出して Zap を発動
+- BLE（直接接続）と API（クラウド経由）の切替
 
 ## 起動
 
 - **Windows:** `pavlok_vrc.cmd` をダブルクリック
 - **CLI:** `python src/main.py`
-
-## 動作
-
-| タイミング | 動作 |
-|---|---|
-| **Grab 開始** | 即座にバイブレーション |
-| **Grab 中（Stretch 超過）** | 警告バイブレーション |
-| **Grab 終了** | 一定時間以上保持で Zap/バイブ発動 |
 
 ## トラブルシューティング
 

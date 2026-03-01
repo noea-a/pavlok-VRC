@@ -204,6 +204,20 @@ def reload() -> None:
     settings = _load()
 
 
+def _reload_config() -> None:
+    """config.py のモジュールレベル変数を再評価する。
+    config.py は起動時に settings の値をフラットな変数に展開するため、
+    settings.reload() 後に合わせて再ロードしないと古い値が残る。
+    """
+    import sys
+    import importlib
+    if "config" in sys.modules:
+        try:
+            importlib.reload(sys.modules["config"])
+        except Exception:
+            pass  # BLE_DEVICE_MAC 未設定などで ValidationError が出ても無視
+
+
 # ===== user.toml への保存 =====
 
 # GUI から変更可能なキーとその TOML セクションのマッピング
@@ -283,6 +297,7 @@ def save_user_settings(changed: dict) -> None:
 
     _write_toml(_USER_TOML, user_data)
     reload()
+    _reload_config()
 
 
 def _write_toml(path: Path, data: dict) -> None:

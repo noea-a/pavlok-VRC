@@ -9,7 +9,7 @@ from bleak import BleakClient, BleakError, BleakScanner
 logger = logging.getLogger(__name__)
 
 # 接続直後のデバイス側準備待ち（秒）
-_CONNECT_SETTLE_DELAY = 0.3
+_CONNECT_SETTLE_DELAY = 1.0
 # 書き込みリトライ回数
 _WRITE_RETRIES = 2
 # 接続監視ループの確認間隔（秒）
@@ -44,6 +44,7 @@ class _PavlokBLE:
         self._monitor_task: asyncio.Task | None = None
         self._keepalive_task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None  # BLEDevice から設定
+        self._reconnecting: bool = False  # connect() 実行中フラグ
 
     @property
     def is_connected(self) -> bool:
@@ -54,49 +55,58 @@ class _PavlokBLE:
     # ------------------------------------------------------------------ #
 
     async def connect(self) -> bool:
-        if self._client is not None:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-            self._client = None
-
+        self._reconnecting = True
         try:
-            # Windows の WinRT バックエンドは MAC 直指定で "Device not found" になりやすいため
-            # 先にスキャンしてデバイスを発見してから接続する
-            scan_timeout = min(self._connect_timeout * 0.6, 20.0)
-            logger.info(f"BLE scanning for {self._mac} (timeout={scan_timeout:.0f}s)...")
-            device = await BleakScanner.find_device_by_address(self._mac, timeout=scan_timeout)
-            if device is None:
-                logger.error(f"BLE scan: device not found: {self._mac}")
-                return False
-
-            logger.info(f"BLE device found: {device.name}, connecting...")
-            self._client = BleakClient(
-                device,
-                timeout=self._connect_timeout,
-                disconnected_callback=self._on_disconnected,
-            )
-            await self._client.connect()
-            await asyncio.sleep(_CONNECT_SETTLE_DELAY)
-
-            if not self._client.is_connected:
-                logger.error("BLE connect: client reported disconnected after settle")
-                return False
-
-            logger.info(f"BLE connected: {self._mac}")
+            if self._client is not None:
+                try:
+                    await self._client.disconnect()
+                except Exception:
+                    pass
+                self._client = None
+                # 前セッションの BT スタック解放を待つ
+                await asyncio.sleep(2.0)
 
             try:
-                await self._client.write_gatt_char(self._C_API_UUID, bytes([87, 84]), response=True)
-            except Exception as e:
-                logger.debug(f"check_api write skipped: {e}")
+                # Windows の WinRT バックエンドは MAC 直指定で "Device not found" になりやすいため
+                # 先にスキャンしてデバイスを発見してから接続する
+                scan_timeout = min(self._connect_timeout * 0.6, 20.0)
+                logger.info(f"BLE scanning for {self._mac} (timeout={scan_timeout:.0f}s)...")
+                device = await BleakScanner.find_device_by_address(self._mac, timeout=scan_timeout)
+                if device is None:
+                    logger.error(f"BLE scan: device not found: {self._mac}")
+                    return False
 
-            return True
+                logger.info(f"BLE device found: {device.name}, connecting...")
+                # スキャン直後は即接続せず少し待機（Pavlok 側の準備を待つ）
+                await asyncio.sleep(1.0)
+                self._client = BleakClient(
+                    device,
+                    timeout=self._connect_timeout,
+                    disconnected_callback=self._on_disconnected,
+                )
+                await self._client.connect(dangerous_use_bleak_cache=False)
+                await asyncio.sleep(_CONNECT_SETTLE_DELAY)
 
-        except (BleakError, asyncio.TimeoutError, Exception) as e:
-            logger.error(f"BLE connect failed: {e}")
-            self._client = None
-            return False
+                if not self._client.is_connected:
+                    logger.error("BLE connect: client reported disconnected after settle")
+                    return False
+
+                logger.info(f"BLE connected: {self._mac}")
+
+                try:
+                    await self._client.write_gatt_char(self._C_API_UUID, bytes([87, 84]), response=True)
+                except Exception as e:
+                    logger.debug(f"check_api write skipped: {e}")
+
+                return True
+
+            except (BleakError, asyncio.TimeoutError, Exception) as e:
+                logger.error(f"BLE connect failed: [{type(e).__name__}] {e!r}")
+                self._client = None
+                return False
+
+        finally:
+            self._reconnecting = False
 
     def _on_disconnected(self, client: BleakClient) -> None:
         """BLE 切断検知コールバック（WinRT スレッドから呼ばれる）。
@@ -104,12 +114,22 @@ class _PavlokBLE:
         """
         if self._should_stop:
             return
+        if self._reconnecting:
+            # connect() 実行中の内部切断（クリーンアップや失敗）なので無視
+            logger.debug("BLE _on_disconnected ignored: connect in progress")
+            return
         logger.warning("BLE unexpected disconnect detected (callback)")
         loop = self._loop
         if loop and not loop.is_closed():
             asyncio.run_coroutine_threadsafe(self._reconnect_from_callback(), loop)
 
     async def _reconnect_from_callback(self) -> None:
+        # 既に再接続中なら追加のコールバック再接続をスキップ
+        if self._reconnect_lock.locked():
+            logger.debug("BLE reconnect already in progress, skipping callback reconnect")
+            return
+        # デバイス側 BT スタックの安定を待つ
+        await asyncio.sleep(1.0)
         async with self._reconnect_lock:
             if not self.is_connected and not self._should_stop:
                 await self._do_reconnect("disconnect-cb")
@@ -168,7 +188,7 @@ class _PavlokBLE:
                 await self._client.write_gatt_char(self._C_API_UUID, _KEEPALIVE_CMD, response=True)
                 logger.debug("BLE keepalive ping sent")
             except Exception as e:
-                logger.debug(f"BLE keepalive ping failed (ignored): {e}")
+                logger.warning(f"BLE keepalive ping failed: [{type(e).__name__}] {e!r}")
         logger.debug("BLE keepalive loop stopped")
 
     # ------------------------------------------------------------------ #
@@ -217,6 +237,10 @@ class _PavlokBLE:
     async def _ensure_connected(self) -> bool:
         if self.is_connected:
             return True
+        # 再接続中（ロック保持中）なら待たずに失敗を返す（モニターに任せる）
+        if self._reconnect_lock.locked():
+            logger.warning("BLE reconnecting in progress, skipping send")
+            return False
         logger.warning("BLE not connected, acquiring lock for reconnect...")
         async with self._reconnect_lock:
             if self.is_connected:

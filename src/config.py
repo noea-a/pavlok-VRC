@@ -25,6 +25,7 @@ DEBUG_LOG_ANGLE = _s.debug.log_angle
 DEBUG_LOG_IS_POSED = _s.debug.log_is_posed
 DEBUG_LOG_ALL_OSC = _s.debug.log_all_osc
 DEBUG_LOG_OSC_SEND = _s.debug.log_osc_send
+DEBUG_LOG_TO_FILE = _s.debug.log_to_file
 
 # ===== ロジック設定 =====
 MIN_GRAB_DURATION = _s.logic.min_grab_duration

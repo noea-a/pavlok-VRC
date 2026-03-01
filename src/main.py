@@ -1,6 +1,8 @@
 import logging
 import time
 import threading
+from datetime import datetime
+from pathlib import Path
 from queue import Queue
 
 from osc.receiver import OSCReceiver
@@ -12,10 +14,26 @@ from gui import QueueHandler
 
 # ===== ログ設定 =====
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def _setup_file_logging() -> logging.FileHandler | None:
+    """settings.debug.log_to_file が True のときファイルハンドラを追加する"""
+    from settings import settings as _s
+    if not _s.debug.log_to_file:
+        return None
+    log_dir = Path(__file__).parent.parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_path = log_dir / f"pavlok_{timestamp}.log"
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logging.getLogger().addHandler(handler)
+    return handler
 
 
 def main():
@@ -26,6 +44,8 @@ def main():
     queue_handler = QueueHandler(log_queue)
     queue_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(queue_handler)
+
+    file_handler = _setup_file_logging()
 
     logger.info("===== VRChat Pavlok Connector Starting =====")
 
@@ -102,6 +122,9 @@ def main():
         osc_receiver.stop()
         device.disconnect()
         logger.info("===== VRChat Pavlok Connector Stopped =====")
+        if file_handler:
+            file_handler.close()
+            logging.getLogger().removeHandler(file_handler)
 
 
 if __name__ == "__main__":

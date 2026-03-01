@@ -70,6 +70,7 @@ class DebugSettings:
     log_is_posed: bool = False
     log_all_osc: bool = False
     log_osc_send: bool = True
+    log_to_file: bool = True
 
 
 @dataclass
@@ -229,6 +230,7 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "LOG_IS_POSED":                      ("debug", "log_is_posed"),
     "LOG_OSC_SEND":                      ("debug", "log_osc_send"),
     "LOG_ALL_OSC":                       ("debug", "log_all_osc"),
+    "LOG_TO_FILE":                       ("debug", "log_to_file"),
 }
 
 

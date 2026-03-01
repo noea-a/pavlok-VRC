@@ -49,7 +49,6 @@ min_speed_eval_window = 90       # 総合速度チェック区間（peak stretch
 min_speed_threshold = 0.5        # 総合速度チェックの合格ライン（stretch/秒）
 speed_stop_threshold = 0.1       # 停止とみなす速度（stretch/秒）
 speed_zap_hold_time = 0.3        # 停止検知から Zap 発火までの待機時間（秒）
-max_zap_duration = 1.0           # 計測最大時間（秒）、超過でキャンセル
 zap_reset_pullback = 30          # Zap 後リセットに必要な戻し量（発火 stretch に対する%）
 
 # ===== Grab開始バイブ設定 =====

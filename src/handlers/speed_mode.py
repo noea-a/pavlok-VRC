@@ -164,14 +164,6 @@ class SpeedModeHandler:
 
     def _check_zap_fire(self, now: float, sm) -> None:
         """発火条件チェック。全通過で Zap 発火。"""
-        # ① 計測時間超過チェック
-        elapsed = now - self._origin_time
-        if elapsed > sm.max_zap_duration:
-            logger.info(f"[SpeedMode] Cancel: max duration exceeded ({elapsed:.2f}s > {sm.max_zap_duration}s)")
-            self._measuring = False
-            self._update_machine_state(self._peak_stretch)
-            return
-
         stretch_range = self._peak_stretch - self._origin_stretch
         if stretch_range <= 0:
             logger.info("[SpeedMode] Cancel: no stretch movement")

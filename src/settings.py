@@ -95,7 +95,6 @@ class SpeedModeSettings:
     min_speed_threshold: float = 0.5
     speed_stop_threshold: float = 0.1
     speed_zap_hold_time: float = 0.3
-    max_zap_duration: float = 1.0
     zap_reset_pullback: int = 30
 
 
@@ -251,7 +250,6 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "MIN_SPEED_THRESHOLD":                ("speed_mode", "min_speed_threshold"),
     "SPEED_STOP_THRESHOLD":               ("speed_mode", "speed_stop_threshold"),
     "SPEED_ZAP_HOLD_TIME":                ("speed_mode", "speed_zap_hold_time"),
-    "MAX_ZAP_DURATION":                   ("speed_mode", "max_zap_duration"),
     "ZAP_RESET_PULLBACK":                 ("speed_mode", "zap_reset_pullback"),
     # 詳細設定
     "BLE_CONNECT_TIMEOUT":               ("ble", "connect_timeout"),

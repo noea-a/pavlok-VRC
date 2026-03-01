@@ -15,6 +15,7 @@ class TestTab(ttk.Frame):
         self.test_stretch_var = tk.DoubleVar(value=0.0)
         self._ble_counter = 0
         self._polling = False
+        self._last_mode = None  # pack/unpack の不要な再実行を防ぐ
 
         # スクロール可能なコンテナ
         scrollbar = ttk.Scrollbar(self, orient="vertical")
@@ -33,13 +34,6 @@ class TestTab(ttk.Frame):
         self._create_unit_test_panel()
         self._create_ble_raw_panel()
         self._create_grab_sim_panel()
-        self._start_poll()
-
-    def enable_scroll(self):
-        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-
-    def disable_scroll(self):
-        self._canvas.unbind_all("<MouseWheel>")
 
     def _on_mousewheel(self, event):
         if isinstance(event.widget, ttk.Spinbox):
@@ -138,9 +132,15 @@ class TestTab(ttk.Frame):
             lbl.grid(row=i, column=1, sticky="w", padx=4, pady=2)
             self._sh_labels[key] = lbl
 
-    def _start_poll(self):
-        self._polling = True
-        self._poll_realtime()
+    def enable_scroll(self):
+        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # タブがアクティブになったときにポーリング開始
+        if not self._polling:
+            self._polling = True
+            self._poll_realtime()
+
+    def disable_scroll(self):
+        self._canvas.unbind_all("<MouseWheel>")
 
     def _poll_realtime(self):
         if not self._polling:
@@ -195,14 +195,19 @@ class TestTab(ttk.Frame):
         else:
             self._rt_last_zap_label.config(text="—", foreground="gray")
 
-        # モード別詳細の切り替え
+        # モード別詳細の切り替え（モードが変わったときだけ pack/unpack）
+        if mode != self._last_mode:
+            if mode == "speed":
+                self._stretch_detail_frame.pack_forget()
+                self._speed_detail_frame.pack(fill="x")
+            else:
+                self._speed_detail_frame.pack_forget()
+                self._stretch_detail_frame.pack(fill="x")
+            self._last_mode = mode
+
         if mode == "speed":
-            self._stretch_detail_frame.pack_forget()
-            self._speed_detail_frame.pack(fill="x")
             self._refresh_speed_detail(gs.speed_mode_state)
         else:
-            self._speed_detail_frame.pack_forget()
-            self._stretch_detail_frame.pack(fill="x")
             self._refresh_stretch_detail(stretch, cfg)
 
     def _refresh_speed_detail(self, state: dict):

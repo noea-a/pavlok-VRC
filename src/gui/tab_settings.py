@@ -180,6 +180,7 @@ class SettingsTab(ttk.Frame):
             ("LOG_IS_POSED", "IsPosed", False, "固定状態"),
             ("LOG_OSC_SEND", "OSC 送信", True, "OSC 送信内容"),
             ("LOG_ALL_OSC", "OSC 受信（全て）", False, "OSC 受信内容（大量に出るので注意）"),
+            ("LOG_TO_FILE", "ファイルに保存", True, "logs/ にログを保存（次回起動から有効）"),
         ]
         for i, (key, label, default, desc) in enumerate(log_items):
             self._add_bool_item(log_frame, key, label, default, row=i, desc=desc)
@@ -278,6 +279,7 @@ class SettingsTab(ttk.Frame):
             "LOG_IS_POSED":                   s.debug.log_is_posed,
             "LOG_OSC_SEND":                   s.debug.log_osc_send,
             "LOG_ALL_OSC":                    s.debug.log_all_osc,
+            "LOG_TO_FILE":                    s.debug.log_to_file,
             "INTENSITY_MODE":                 s.logic.intensity_mode,
             "MAX_SPEED_FOR_CALC":             s.logic.max_speed_for_calc,
             "STRETCH_WEIGHT":                 s.logic.stretch_weight,
@@ -367,6 +369,7 @@ class SettingsTab(ttk.Frame):
             "LOG_IS_POSED":                   default_settings.debug.log_is_posed,
             "LOG_OSC_SEND":                   default_settings.debug.log_osc_send,
             "LOG_ALL_OSC":                    default_settings.debug.log_all_osc,
+            "LOG_TO_FILE":                    default_settings.debug.log_to_file,
             "INTENSITY_MODE":                 default_settings.logic.intensity_mode,
             "MAX_SPEED_FOR_CALC":             default_settings.logic.max_speed_for_calc,
             "STRETCH_WEIGHT":                 default_settings.logic.stretch_weight,

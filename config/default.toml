@@ -26,6 +26,7 @@ log_angle = false
 log_is_posed = false
 log_all_osc = false
 log_osc_send = true
+log_to_file = false
 
 # ===== ロジック設定 =====
 [logic]

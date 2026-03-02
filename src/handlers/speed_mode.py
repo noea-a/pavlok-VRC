@@ -27,6 +27,8 @@ class SpeedModeHandler:
         self._origin_time: float = 0.0
         self._measuring: bool = False
         self._peak_stretch: float = 0.0
+        self._peak_time: float = 0.0
+        self._last_movement_time: float = 0.0
         self._stop_start_time: float | None = None
         self._stop_timer: threading.Timer | None = None
         self._zap_fired: bool = False
@@ -54,6 +56,8 @@ class SpeedModeHandler:
         self._history.clear()
         self._measuring = False
         self._peak_stretch = 0.0
+        self._peak_time = 0.0
+        self._last_movement_time = 0.0
         self._stop_start_time = None
         self._zap_fired = False
         self._zap_fire_stretch = 0.0
@@ -89,8 +93,9 @@ class SpeedModeHandler:
 
         # B. ZAP_RESET_PULLBACK 監視（_zap_fired=True のとき）
         if self._zap_fired:
-            if self._zap_fire_stretch > 0:
-                pullback_ratio = (self._zap_fire_stretch - stretch) / self._zap_fire_stretch
+            delta = self._zap_fire_stretch - self._origin_stretch
+            if delta > 0:
+                pullback_ratio = (self._zap_fire_stretch - stretch) / delta
                 threshold = sm.zap_reset_pullback / 100.0
                 if pullback_ratio >= threshold:
                     logger.info(f"[SpeedMode] Pullback detected ({pullback_ratio:.2%}), resetting origin")
@@ -111,16 +116,18 @@ class SpeedModeHandler:
         # D. _measuring=True のとき
         if stretch > self._peak_stretch:
             self._peak_stretch = stretch
+            self._peak_time = now
 
         # 停止検知（stretch 方向のみ）
         recent_speed = self._calc_recent_speed()
         if recent_speed > sm.speed_stop_threshold:
-            # まだ動いている → タイマーをリスタート
-            # （更新が来なくなった時点から hold_time 後に発火チェックされる）
+            # まだ動いている → 最終動き時刻を更新（タイマーは再生成しない）
+            self._last_movement_time = now
             self._stop_start_time = now
-            self._start_stop_timer(sm.speed_zap_hold_time)
+            if self._stop_timer is None:
+                self._start_stop_timer(sm.speed_zap_hold_time)
         else:
-            # 停止とみなす → タイマーが切れていれば再起動
+            # 停止とみなす → タイマーが切れていれば起動
             if self._stop_timer is None:
                 if self._stop_start_time is None:
                     self._stop_start_time = now
@@ -150,9 +157,15 @@ class SpeedModeHandler:
         self._stop_timer = None
         if not self._measuring or self._zap_fired:
             return
+        sm = self._get_settings()
+        # 最後の動き検知からまだ hold_time 経過していない場合は残り時間で再スタート
+        elapsed = time.time() - self._last_movement_time
+        if elapsed < sm.speed_zap_hold_time:
+            self._start_stop_timer(sm.speed_zap_hold_time - elapsed)
+            return
         self._stop_start_time = None
         try:
-            self._check_zap_fire(time.time(), self._get_settings())
+            self._check_zap_fire(time.time(), sm)
         except Exception as e:
             logger.error(f"[SpeedMode] Error in stop timer: {e}", exc_info=True)
             self._measuring = False
@@ -165,6 +178,8 @@ class SpeedModeHandler:
         self._origin_time = now
         self._measuring = True
         self._peak_stretch = stretch
+        self._peak_time = now
+        self._last_movement_time = now
         self._stop_start_time = now
         self._history.clear()
         self._history.append((now, stretch))
@@ -184,7 +199,7 @@ class SpeedModeHandler:
 
         # ② INITIAL_SPEED_STRETCH_WINDOW 区間の速度チェック
         window_end = self._origin_stretch + stretch_range * (sm.initial_speed_stretch_window / 100.0)
-        initial_avg = self._calc_avg_speed_in_range(self._origin_stretch, window_end)
+        initial_avg = self._calc_avg_speed_in_range(self._origin_stretch, window_end, self._peak_time)
         if initial_avg < sm.speed_zap_threshold:
             logger.info(f"[SpeedMode] Cancel: initial speed too low ({initial_avg:.3f} < {sm.speed_zap_threshold})")
             self._measuring = False
@@ -193,7 +208,7 @@ class SpeedModeHandler:
 
         # ③ MIN_SPEED_EVAL_WINDOW 区間の速度チェック
         eval_end = self._origin_stretch + stretch_range * (sm.min_speed_eval_window / 100.0)
-        eval_avg = self._calc_avg_speed_in_range(self._origin_stretch, eval_end)
+        eval_avg = self._calc_avg_speed_in_range(self._origin_stretch, eval_end, self._peak_time)
         if eval_avg < sm.min_speed_threshold:
             logger.info(f"[SpeedMode] Cancel: eval speed too low ({eval_avg:.3f} < {sm.min_speed_threshold})")
             self._measuring = False
@@ -236,6 +251,23 @@ class SpeedModeHandler:
         self._measuring = False
         self._update_machine_state(self._peak_stretch)
 
+        # ZAP発火時点で既にプルバック条件を満たしている場合は即座にリセット
+        # （素早く引いて即戻した場合、次のOSC更新を待たずに再計測を開始する）
+        self._check_immediate_pullback(time.time())
+
+    def _check_immediate_pullback(self, now: float) -> None:
+        """ZAP直後に現在のstretchでプルバック条件を確認し、満たしていれば即座にリセット。"""
+        current = self._machine.current_stretch
+        delta = self._zap_fire_stretch - self._origin_stretch
+        if delta <= 0:
+            return
+        pullback_ratio = (self._zap_fire_stretch - current) / delta
+        threshold = self._get_settings().zap_reset_pullback / 100.0
+        if pullback_ratio >= threshold:
+            logger.info(f"[SpeedMode] Immediate pullback detected ({pullback_ratio:.2%}), resetting origin")
+            self._zap_fired = False
+            self._reset_origin(current, now)
+
     # ------------------------------------------------------------------ #
     # 速度計算ヘルパー                                                     #
     # ------------------------------------------------------------------ #
@@ -262,10 +294,15 @@ class SpeedModeHandler:
             return 0.0
         return (s_curr - s_prev) / dt
 
-    def _calc_avg_speed_in_range(self, stretch_from: float, stretch_to: float) -> float:
-        """stretch_from ~ stretch_to の範囲にある履歴エントリから平均速度を計算"""
+    def _calc_avg_speed_in_range(self, stretch_from: float, stretch_to: float, time_limit: float | None = None) -> float:
+        """stretch_from ~ stretch_to の範囲にある履歴エントリから平均速度を計算。
+        time_limit を指定するとその時刻以前のエントリのみ使用（戻り動作の混入を防ぐ）。"""
         history = list(self._history)
-        filtered = [(t, s) for t, s in history if stretch_from <= s <= stretch_to]
+        filtered = [
+            (t, s) for t, s in history
+            if stretch_from <= s <= stretch_to
+            and (time_limit is None or t <= time_limit)
+        ]
         if len(filtered) < 2:
             return 0.0
         return self._avg_speed_of(filtered)

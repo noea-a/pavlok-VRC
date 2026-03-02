@@ -237,8 +237,8 @@ class _PavlokBLE:
     async def _ensure_connected(self) -> bool:
         if self.is_connected:
             return True
-        # 再接続中（ロック保持中）なら待たずに失敗を返す（モニターに任せる）
-        if self._reconnect_lock.locked():
+        # 再接続中（フラグ or ロック保持中）なら待たずに失敗を返す（モニターに任せる）
+        if self._reconnecting or self._reconnect_lock.locked():
             logger.warning("BLE reconnecting in progress, skipping send")
             return False
         logger.warning("BLE not connected, acquiring lock for reconnect...")
@@ -335,25 +335,35 @@ class BLEDevice:
             self._ble._loop = self._loop
 
         max_attempts = 3
-        for attempt in range(1, max_attempts + 1):
-            logger.info(f"BLE 接続試行 {attempt}/{max_attempts}...")
-            try:
-                # scan (最大 connect_timeout*0.6) + GATT接続 (connect_timeout) + バッファ
-                coro_timeout = self._connect_timeout * 1.7 + 3
-                ok = self._run_coro(self._ble.connect(), timeout=coro_timeout)
-            except Exception as e:
-                logger.error(f"BLEDevice.connect error (attempt {attempt}): {e}")
-                ok = False
+        try:
+            for attempt in range(1, max_attempts + 1):
+                # _ble.connect() の finally で _reconnecting=False になるため、
+                # 試行前に True に戻してコールバックからの割り込みを防ぐ
+                self._ble._reconnecting = True
+                logger.info(f"BLE 接続試行 {attempt}/{max_attempts}...")
+                try:
+                    # scan (最大 connect_timeout*0.6) + GATT接続 (connect_timeout) + バッファ
+                    coro_timeout = self._connect_timeout * 1.7 + 3
+                    ok = self._run_coro(self._ble.connect(), timeout=coro_timeout)
+                except Exception as e:
+                    logger.error(f"BLEDevice.connect error (attempt {attempt}): {e}")
+                    ok = False
 
-            if ok:
-                # モニタータスクが未起動 or 終了済みの場合のみ起動
-                if self._ble._monitor_task is None or self._ble._monitor_task.done():
-                    asyncio.run_coroutine_threadsafe(self._ble.start_monitor(), self._loop)
-                return True
+                if ok:
+                    # モニタータスクが未起動 or 終了済みの場合のみ起動
+                    if self._ble._monitor_task is None or self._ble._monitor_task.done():
+                        asyncio.run_coroutine_threadsafe(self._ble.start_monitor(), self._loop)
+                    return True
 
-            if attempt < max_attempts:
-                logger.info(f"BLE 接続失敗、{self._reconnect_interval:.0f}秒後に再試行...")
-                time.sleep(self._reconnect_interval)
+                if attempt < max_attempts:
+                    # sleep 中もフラグを維持してコールバック再接続を抑制
+                    self._ble._reconnecting = True
+                    logger.info(f"BLE 接続失敗、{self._reconnect_interval:.0f}秒後に再試行...")
+                    time.sleep(self._reconnect_interval)
+        finally:
+            # 全試行完了後はフラグを解放
+            if self._ble is not None:
+                self._ble._reconnecting = False
 
         logger.error(f"BLE 接続失敗（{max_attempts}回試行）")
         return False

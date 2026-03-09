@@ -1,13 +1,13 @@
 # VRChat Pavlok Connector
 
-VRChat内のPhysBoneを伸ばすと、Pavlok（電撃デバイス）が発動するシステムです。
+PhysBoneを伸ばすと、Pavlok（電撃デバイス）が発動するシステムです。
 
 ## 必要なもの
 
 - Windows PC
 - Python 3.11 以上
 - Pavlok 3
-- VRChat アカウント・対応アバター
+- 対応アバター
 
 ## セットアップ
 

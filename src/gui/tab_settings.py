@@ -180,6 +180,9 @@ class SettingsTab(ttk.Frame):
         row += 1
         self._add_bool_item(osc_frame, "SEND_FINAL_CHATBOX", "Zap 実行値", True,
                             row=row, desc="実際に実行された Zap 値を表示")
+        row += 1
+        self._add_bool_item(osc_frame, "BLE_CONNECTION_CHATBOX", "BLE 接続状態通知", True,
+                            row=row, desc="BLE 切断・再接続を Chatbox に表示")
 
         # --- BLE ---
         ble_frame = ttk.LabelFrame(parent, text="BLE 接続", padding=8)
@@ -369,6 +372,7 @@ class SettingsTab(ttk.Frame):
             "OSC_SEND_INTERVAL":              s.osc.send.interval,
             "SEND_REALTIME_CHATBOX":          s.osc.send.realtime_chatbox,
             "SEND_FINAL_CHATBOX":             s.osc.send.final_chatbox,
+            "BLE_CONNECTION_CHATBOX":         s.osc.send.ble_connection_chatbox,
             "BLE_CONNECT_TIMEOUT":            s.ble.connect_timeout,
             "BLE_RECONNECT_INTERVAL":         s.ble.reconnect_interval,
             "BLE_KEEPALIVE_INTERVAL":         s.ble.keepalive_interval,
@@ -485,6 +489,7 @@ class SettingsTab(ttk.Frame):
             "OSC_SEND_INTERVAL":              default_settings.osc.send.interval,
             "SEND_REALTIME_CHATBOX":          default_settings.osc.send.realtime_chatbox,
             "SEND_FINAL_CHATBOX":             default_settings.osc.send.final_chatbox,
+            "BLE_CONNECTION_CHATBOX":         default_settings.osc.send.ble_connection_chatbox,
             "BLE_CONNECT_TIMEOUT":            default_settings.ble.connect_timeout,
             "BLE_RECONNECT_INTERVAL":         default_settings.ble.reconnect_interval,
             "BLE_KEEPALIVE_INTERVAL":         default_settings.ble.keepalive_interval,

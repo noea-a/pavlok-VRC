@@ -50,6 +50,7 @@ class OscSendSettings:
     interval: float = 1.5
     realtime_chatbox: bool = True
     final_chatbox: bool = True
+    ble_connection_chatbox: bool = True
 
 
 @dataclass
@@ -251,6 +252,7 @@ _SAVEABLE_KEYS: dict[str, tuple[str, str]] = {
     "OSC_SEND_INTERVAL":                  ("osc.send", "interval"),
     "SEND_REALTIME_CHATBOX":              ("osc.send", "realtime_chatbox"),
     "SEND_FINAL_CHATBOX":                 ("osc.send", "final_chatbox"),
+    "BLE_CONNECTION_CHATBOX":             ("osc.send", "ble_connection_chatbox"),
     # Speed モード設定
     "SPEED_GRAB_SETTLE_TIME":             ("speed_mode", "grab_settle_time"),
     "SPEED_ONSET_THRESHOLD":              ("speed_mode", "speed_onset_threshold"),

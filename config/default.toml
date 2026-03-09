@@ -17,6 +17,7 @@ chatbox_param = "/chatbox/input"
 interval = 1.5
 realtime_chatbox = true
 final_chatbox = true
+ble_connection_chatbox = true
 
 # ===== デバッグログ設定 =====
 [debug]

@@ -97,6 +97,7 @@ class SettingsTab(ttk.Frame):
         self._add_combo_item(device_frame, "CONTROL_MODE", "制御モード",
                              ["ble", "api"], "ble", row=0,
                              desc="ble=Bluetooth直接制御 / api=クラウド API（再起動で反映）")
+        self.setting_widgets["CONTROL_MODE"]["var"].trace_add("write", self._on_control_mode_change)
         self._add_bool_item(device_frame, "USE_VIBRATION", "バイブレーションモード", False, row=1,
                             desc="Zap の代わりにバイブを使用します（テスト用）")
 
@@ -291,6 +292,32 @@ class SettingsTab(ttk.Frame):
         "OSC_SEND_INTERVAL",
     )
 
+    # BLE 専用ウィジェットキー（API モード時はグレーアウト）
+    _BLE_ONLY_KEYS = (
+        "BLE_CONNECT_TIMEOUT",
+        "BLE_RECONNECT_INTERVAL",
+        "BLE_KEEPALIVE_INTERVAL",
+        "BLE_BATTERY_REFRESH_INTERVAL",
+        "BLE_CONNECTION_CHATBOX",
+    )
+
+    def _on_control_mode_change(self, *_):
+        mode = self.setting_widgets["CONTROL_MODE"]["var"].get()
+        self._apply_control_mode_visibility(mode)
+
+    def _apply_control_mode_visibility(self, mode: str):
+        ble_state = "normal" if mode == "ble" else "disabled"
+        for key in self._BLE_ONLY_KEYS:
+            info = self.setting_widgets.get(key)
+            if info is None:
+                continue
+            w = info.get("widget")
+            if w:
+                try:
+                    w.config(state=ble_state)
+                except Exception:
+                    pass
+
     def _on_zap_mode_change(self, *_):
         mode = self.setting_widgets["ZAP_MODE"]["var"].get()
         self._apply_mode_visibility(mode)
@@ -418,6 +445,9 @@ class SettingsTab(ttk.Frame):
             mode = self.setting_widgets.get("ZAP_MODE", {}).get("var")
             if mode:
                 self._apply_mode_visibility(mode.get())
+            ctrl_mode = self.setting_widgets.get("CONTROL_MODE", {}).get("var")
+            if ctrl_mode:
+                self._apply_control_mode_visibility(ctrl_mode.get())
         except Exception as e:
             messagebox.showerror("エラー", f"設定の読み込みに失敗しました: {e}")
 

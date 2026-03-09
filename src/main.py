@@ -68,9 +68,21 @@ def main():
     SpeedModeHandler(machine, status_queue)
     StimulusHandler(machine, status_queue)
     logger.info("Both zap handlers registered (mode switching at runtime)")
-    ChatboxHandler(machine, OSCSender())
+    osc_sender = OSCSender()
+    ChatboxHandler(machine, osc_sender, device=device)
     RecorderHandler(machine, zap_recorder)
     GUIUpdater(machine, status_queue)
+
+    # BLE 接続状態変化を Chatbox に通知
+    def _on_ble_connection_changed(connected: bool) -> None:
+        from settings import settings as _s
+        if not _s.osc.send.ble_connection_chatbox:
+            return
+        msg = "✓ Pavlok 再接続" if connected else "⚠ Pavlok 切断"
+        osc_sender.send_chatbox_message(msg)
+
+    if hasattr(device, 'on_connection_changed'):
+        device.on_connection_changed = _on_ble_connection_changed
 
     # ------------------------------------------------------------------ #
     # OSC 受信                                                             #

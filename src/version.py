@@ -2,6 +2,6 @@
 バージョン情報
 """
 
-__version__ = "1.3.7.4"
+__version__ = "1.3.8.1"
 __author__ = "noea-a"
 __license__ = "MIT"

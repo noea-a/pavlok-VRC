@@ -4,6 +4,7 @@ import asyncio
 import logging
 import threading
 import time
+from typing import Callable
 from bleak import BleakClient, BleakError, BleakScanner
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,14 @@ class _PavlokBLE:
         self._keepalive_task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None  # BLEDevice から設定
         self._reconnecting: bool = False  # connect() 実行中フラグ
+        self.on_connection_changed: Callable[[bool], None] | None = None
+
+    def _fire_connection_changed(self, connected: bool) -> None:
+        if self.on_connection_changed:
+            try:
+                self.on_connection_changed(connected)
+            except Exception as e:
+                logger.debug(f"on_connection_changed callback error: {e}")
 
     @property
     def is_connected(self) -> bool:
@@ -119,6 +128,7 @@ class _PavlokBLE:
             logger.debug("BLE _on_disconnected ignored: connect in progress")
             return
         logger.warning("BLE unexpected disconnect detected (callback)")
+        self._fire_connection_changed(False)
         loop = self._loop
         if loop and not loop.is_closed():
             asyncio.run_coroutine_threadsafe(self._reconnect_from_callback(), loop)
@@ -229,6 +239,7 @@ class _PavlokBLE:
                 return False
             logger.info(f"BLE reconnect [{caller}] attempt {attempt}/3...")
             if await self.connect():
+                self._fire_connection_changed(True)
                 return True
             await asyncio.sleep(self._reconnect_interval)
         logger.error(f"BLE reconnect [{caller}] failed")
@@ -287,6 +298,7 @@ class BLEDevice:
         self._ble: _PavlokBLE | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        self._pending_connection_cb: Callable[[bool], None] | None = None
 
     def _start_loop(self) -> None:
         """イベントループを起動する。既に動作中なら何もしない（冪等）。"""
@@ -315,6 +327,16 @@ class BLEDevice:
     def is_connected(self) -> bool:
         return self._ble is not None and self._ble.is_connected
 
+    @property
+    def on_connection_changed(self):
+        return self._ble.on_connection_changed if self._ble else self._pending_connection_cb
+
+    @on_connection_changed.setter
+    def on_connection_changed(self, cb: Callable[[bool], None] | None):
+        self._pending_connection_cb = cb
+        if self._ble:
+            self._ble.on_connection_changed = cb
+
     def connect(self) -> bool:
         if not self._mac:
             logger.error("BLE_DEVICE_MAC が設定されていません（.env を確認してください）")
@@ -333,6 +355,8 @@ class BLEDevice:
                 keepalive_interval=self._keepalive_interval,
             )
             self._ble._loop = self._loop
+            if self._pending_connection_cb is not None:
+                self._ble.on_connection_changed = self._pending_connection_cb
 
         max_attempts = 3
         try:

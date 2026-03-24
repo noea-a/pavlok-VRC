@@ -134,11 +134,7 @@ class _PavlokBLE:
             asyncio.run_coroutine_threadsafe(self._reconnect_from_callback(), loop)
 
     async def _reconnect_from_callback(self) -> None:
-        # 既に再接続中なら追加のコールバック再接続をスキップ
-        if self._reconnect_lock.locked():
-            logger.debug("BLE reconnect already in progress, skipping callback reconnect")
-            return
-        # デバイス側 BT スタックの安定を待つ
+        # デバイス側 BT スタックの安定を待つ（この間に別の再接続が完了している場合は lock 内の is_connected チェックで弾く）
         await asyncio.sleep(1.0)
         async with self._reconnect_lock:
             if not self.is_connected and not self._should_stop:

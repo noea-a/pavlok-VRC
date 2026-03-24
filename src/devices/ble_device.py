@@ -410,6 +410,9 @@ class BLEDevice:
                 pass
         if self._loop:
             self._loop.call_soon_threadsafe(self._loop.stop)
+        self._ble = None
+        self._loop = None
+        self._thread = None
 
     def send_zap(self, intensity: int) -> bool:
         if not self._ble or not self._loop:

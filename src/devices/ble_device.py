@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # 接続直後のデバイス側準備待ち（秒）
 _CONNECT_SETTLE_DELAY = 1.0
 # 書き込みリトライ回数
-_WRITE_RETRIES = 2
+_WRITE_RETRIES = 3
 # 接続監視ループの確認間隔（秒）
 _MONITOR_INTERVAL = 5.0
 # Keep-alive ping コマンド（check_api への書き込み）
@@ -188,17 +188,28 @@ class _PavlokBLE:
 
     async def _keepalive_loop(self) -> None:
         logger.debug("BLE keepalive loop started")
+        consecutive_failures = 0
         while not self._should_stop:
             await asyncio.sleep(self._keepalive_interval)
             if self._should_stop:
                 break
             if not self.is_connected:
+                consecutive_failures = 0
                 continue
             try:
                 await self._client.write_gatt_char(self._C_API_UUID, _KEEPALIVE_CMD, response=True)
                 logger.debug("BLE keepalive ping sent")
+                consecutive_failures = 0
             except Exception as e:
-                logger.warning(f"BLE keepalive ping failed: [{type(e).__name__}] {e!r}")
+                consecutive_failures += 1
+                logger.warning(f"BLE keepalive ping failed ({consecutive_failures}): [{type(e).__name__}] {e!r}")
+                if consecutive_failures >= 2:
+                    logger.warning("BLE keepalive: consecutive failures, triggering reconnect")
+                    self._fire_connection_changed(False)
+                    async with self._reconnect_lock:
+                        if not self.is_connected and not self._should_stop:
+                            await self._do_reconnect("keepalive")
+                    consecutive_failures = 0
         logger.debug("BLE keepalive loop stopped")
 
     # ------------------------------------------------------------------ #
@@ -313,9 +324,12 @@ class BLEDevice:
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
-    def _run_coro(self, coro, timeout: float = 10):
+    def _run_coro(self, coro, timeout: float | None = None):
         if self._loop is None:
             raise RuntimeError("BLE loop not started")
+        if timeout is None:
+            # 再接続が走る場合: scan + connect + retry × 3 を考慮
+            timeout = self._connect_timeout * 2 + 15
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
         return future.result(timeout=timeout)
 

@@ -29,7 +29,6 @@ class GrabStateMachine:
         self.is_grabbed: bool = False
         self.current_stretch: float = 0.0
         self.grab_start_time: float | None = None
-        self.stretch_above_threshold: bool = False
 
         # --- Stretch 履歴（速度計算用） ---
         self._stretch_history: deque[tuple[float, float]] = deque(maxlen=300)
@@ -49,11 +48,9 @@ class GrabStateMachine:
 
         # --- イベントコールバックリスト ---
         self._on_grab_start: list[Event] = []
-        self._on_grab_end: list[Event] = []          # (stretch: float, duration: float)
-        self._on_stretch_update: list[Event] = []    # (stretch: float)  ← grabbed 中のみ
-        self._on_threshold_crossed: list[Event] = [] # (stretch: float)
-        self._on_threshold_cleared: list[Event] = [] # (stretch: float)
-        self._on_state_change: list[Event] = []      # ()  どんな状態変化でも発火
+        self._on_grab_end: list[Event] = []        # (stretch: float, duration: float)
+        self._on_stretch_update: list[Event] = []  # (stretch: float)  ← grabbed 中のみ
+        self._on_state_change: list[Event] = []    # ()  どんな状態変化でも発火
 
     # ------------------------------------------------------------------ #
     # Subscribe メソッド                                                   #
@@ -68,14 +65,12 @@ class GrabStateMachine:
     def subscribe_stretch_update(self, cb: Event) -> None:
         self._on_stretch_update.append(cb)
 
-    def subscribe_threshold_crossed(self, cb: Event) -> None:
-        self._on_threshold_crossed.append(cb)
-
-    def subscribe_threshold_cleared(self, cb: Event) -> None:
-        self._on_threshold_cleared.append(cb)
-
     def subscribe_state_change(self, cb: Event) -> None:
         self._on_state_change.append(cb)
+
+    def notify_state_change(self) -> None:
+        """外部から状態変化を通知する（ハンドラが last_zap_* を更新した後に呼ぶ）。"""
+        self._fire(self._on_state_change)
 
     # ------------------------------------------------------------------ #
     # OSC コールバック（OSCReceiver から呼ばれる / tab_test.py が直接呼ぶ） #
@@ -93,19 +88,6 @@ class GrabStateMachine:
         logger.debug(f"Stretch updated: {value:.3f}")
         self._fire(self._on_stretch_update, value)
 
-        # ヒステリシス付き閾値チェック
-        from config import VIBRATION_ON_STRETCH_THRESHOLD, VIBRATION_HYSTERESIS_OFFSET
-        if value > VIBRATION_ON_STRETCH_THRESHOLD:
-            if not self.stretch_above_threshold:
-                self.stretch_above_threshold = True
-                logger.info(f"[SM] Stretch threshold crossed: {value:.3f}")
-                self._fire(self._on_threshold_crossed, value)
-        elif value < VIBRATION_ON_STRETCH_THRESHOLD - VIBRATION_HYSTERESIS_OFFSET:
-            if self.stretch_above_threshold:
-                self.stretch_above_threshold = False
-                logger.info(f"[SM] Stretch below hysteresis: {value:.3f}")
-                self._fire(self._on_threshold_cleared, value)
-
     def on_grabbed_change(self, value: bool) -> None:
         """IsGrabbed 状態が変化した。"""
         old_state = self.is_grabbed
@@ -115,7 +97,6 @@ class GrabStateMachine:
         if not old_state and value:
             # false → true: Grab 開始
             self.grab_start_time = time.time()
-            self.stretch_above_threshold = False
             self._stretch_history.clear()
             logger.info("[SM] Grab started")
             self._fire(self._on_grab_start)
@@ -129,7 +110,6 @@ class GrabStateMachine:
                 self._fire(self._on_grab_end, stretch, duration)
                 self.grab_start_time = None
                 self.current_stretch = 0.0
-            self.stretch_above_threshold = False
 
     # ------------------------------------------------------------------ #
     # 内部                                                                 #

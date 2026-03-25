@@ -65,8 +65,8 @@ def main():
     machine.zap_recorder = zap_recorder  # tab_stats.py からのアクセス用
 
     # ハンドラを生成してイベントを購読（両方登録し、実行時に zap_mode で分岐）
-    SpeedModeHandler(machine, status_queue)
-    StimulusHandler(machine, status_queue)
+    SpeedModeHandler(machine)
+    StimulusHandler(machine)
     logger.info("Both zap handlers registered (mode switching at runtime)")
     osc_sender = OSCSender()
     ChatboxHandler(machine, osc_sender, device=device)

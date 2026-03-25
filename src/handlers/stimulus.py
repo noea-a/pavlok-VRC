@@ -2,10 +2,11 @@
 
 GrabStateMachine のイベントを受けて Pavlok へ刺激を送る。
 zap 送信後は machine.last_zap_* を更新し、GUIUpdater が読めるようにする。
+
+ヒステリシス付き閾値チェック（旧 state_machine 担当）もここで管理する。
 """
 
 import logging
-from queue import Queue
 
 logger = logging.getLogger(__name__)
 
@@ -13,18 +14,17 @@ logger = logging.getLogger(__name__)
 class StimulusHandler:
     """Grab イベントに応じて Pavlok への刺激送信を担う。"""
 
-    def __init__(self, machine, status_queue: Queue | None = None):
+    def __init__(self, machine):
         """
         Args:
             machine: GrabStateMachine インスタンス（イベント購読 + last_zap_* 更新用）
-            status_queue: Zap 送信直後に GUI を即時更新するためのキュー
         """
         self._machine = machine
-        self._status_queue = status_queue
+        self._stretch_above_threshold: bool = False
 
         machine.subscribe_grab_start(self._on_grab_start)
         machine.subscribe_grab_end(self._on_grab_end)
-        machine.subscribe_threshold_crossed(self._on_threshold_crossed)
+        machine.subscribe_stretch_update(self._on_stretch_update_check_threshold)
 
     # ------------------------------------------------------------------ #
     # イベントハンドラ                                                     #
@@ -37,6 +37,7 @@ class StimulusHandler:
 
     def _on_grab_start(self) -> None:
         """Grab 開始時：常にバイブレーションを送信する。"""
+        self._stretch_above_threshold = False
         if not self._is_active():
             return
         from config import (
@@ -54,6 +55,7 @@ class StimulusHandler:
 
     def _on_grab_end(self, stretch: float, duration: float) -> None:
         """Grab 終了時：MIN_GRAB_DURATION 以上なら刺激を送信する。"""
+        self._stretch_above_threshold = False
         if not self._is_active():
             return
         from config import MIN_GRAB_DURATION, USE_VIBRATION
@@ -78,12 +80,29 @@ class StimulusHandler:
             display = normalize_intensity_for_display(intensity)
             self._machine.last_zap_display_intensity = display
             self._machine.last_zap_actual_intensity = intensity
-            self._push_status()
+            self._machine.notify_state_change()
+
+    def _on_stretch_update_check_threshold(self, stretch: float) -> None:
+        """Grab 中の Stretch 変化：ヒステリシス付き閾値チェックを行う。"""
+        if not self._is_active():
+            return
+        import settings as s_mod
+        sv = s_mod.settings.stretch_vibration
+        threshold = sv.threshold
+        hysteresis_offset = sv.hysteresis_offset
+
+        if stretch > threshold:
+            if not self._stretch_above_threshold:
+                self._stretch_above_threshold = True
+                logger.info(f"[Stimulus] Stretch threshold crossed: {stretch:.3f}")
+                self._on_threshold_crossed(stretch)
+        elif stretch < threshold - hysteresis_offset:
+            if self._stretch_above_threshold:
+                self._stretch_above_threshold = False
+                logger.info(f"[Stimulus] Stretch below hysteresis: {stretch:.3f}")
 
     def _on_threshold_crossed(self, stretch: float) -> None:
         """Stretch が閾値を超えた：警告バイブレーションを送信する。"""
-        if not self._is_active():
-            return
         from config import (
             VIBRATION_ON_STRETCH_INTENSITY, VIBRATION_ON_STRETCH_COUNT,
             VIBRATION_ON_STRETCH_TON, VIBRATION_ON_STRETCH_TOFF,
@@ -105,25 +124,3 @@ class StimulusHandler:
         cfg = IntensityConfig.from_settings()
         logger.info(f"[Stimulus] stretch={stretch:.3f}")
         return calculate_intensity(stretch, cfg)
-
-    # ------------------------------------------------------------------ #
-    # 内部                                                                 #
-    # ------------------------------------------------------------------ #
-
-    def _push_status(self) -> None:
-        """Zap 送信直後に GUI を即時更新する。"""
-        if not self._status_queue:
-            return
-        try:
-            from pavlok_controller import calculate_zap_intensity
-            m = self._machine
-            intensity = calculate_zap_intensity(m.current_stretch) if m.is_grabbed else 0
-            self._status_queue.put({
-                "is_grabbed": m.is_grabbed,
-                "stretch": m.current_stretch,
-                "intensity": intensity,
-                "last_zap_display_intensity": m.last_zap_display_intensity,
-                "last_zap_actual_intensity": m.last_zap_actual_intensity,
-            })
-        except Exception:
-            pass

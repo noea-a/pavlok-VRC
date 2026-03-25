@@ -7,7 +7,6 @@ import time
 import threading
 import logging
 from collections import deque
-from queue import Queue
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +14,8 @@ logger = logging.getLogger(__name__)
 class SpeedModeHandler:
     """速度ベースの Zap 発火ハンドラ。"""
 
-    def __init__(self, machine, status_queue: Queue | None = None):
+    def __init__(self, machine):
         self._machine = machine
-        self._status_queue = status_queue
 
         # 状態変数
         self._grab_start_time: float = 0.0
@@ -244,7 +242,7 @@ class SpeedModeHandler:
             display = normalize_intensity_for_display(intensity)
             self._machine.last_zap_display_intensity = display
             self._machine.last_zap_actual_intensity = intensity
-            self._push_status()
+            self._machine.notify_state_change()
 
         self._zap_fired = True
         self._zap_fire_stretch = self._peak_stretch
@@ -337,19 +335,3 @@ class SpeedModeHandler:
         import settings as s_mod
         return s_mod.settings.speed_mode
 
-    def _push_status(self) -> None:
-        if not self._status_queue:
-            return
-        try:
-            from pavlok_controller import calculate_zap_intensity
-            m = self._machine
-            intensity = calculate_zap_intensity(m.current_stretch) if m.is_grabbed else 0
-            self._status_queue.put({
-                "is_grabbed": m.is_grabbed,
-                "stretch": m.current_stretch,
-                "intensity": intensity,
-                "last_zap_display_intensity": m.last_zap_display_intensity,
-                "last_zap_actual_intensity": m.last_zap_actual_intensity,
-            })
-        except Exception:
-            pass

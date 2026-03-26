@@ -6,6 +6,8 @@ import threading
 import time
 from typing import Callable
 from bleak import BleakClient, BleakError, BleakScanner
+from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,71 @@ _WRITE_RETRIES = 3
 _MONITOR_INTERVAL = 5.0
 # Keep-alive ping コマンド（check_api への書き込み）
 _KEEPALIVE_CMD = bytes([87, 84])
+
+# 起動直後のBLEスタック安定待ち（秒）
+_STACK_WARMUP_MAX_WAIT = 30.0
+_STACK_WARMUP_STEP = 2.0
+# アドレス解決が不安定なときの名前フォールバック
+_NAME_HINT = "Pavlok"
+
+
+async def _wait_ble_stack_ready(running_check: Callable[[], bool]) -> None:
+    """Win起動直後のBLEスタックが不安定な時間帯を吸収する。
+    スキャン結果が返るか、最大待機時間に達するまでリトライする。
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + _STACK_WARMUP_MAX_WAIT
+    while running_check() and loop.time() < deadline:
+        try:
+            devs = await BleakScanner.discover(timeout=_STACK_WARMUP_STEP)
+            if devs:
+                return
+        except Exception as e:
+            logger.debug("BLEスタック待ち discover 例外: %r", e)
+        await asyncio.sleep(0.2)
+
+
+async def _find_device_robust(
+    address: str,
+    timeout: float,
+    running_check: Callable[[], bool],
+) -> "BLEDevice | None":
+    """コールバック型スキャンでデバイスを探す。
+    (1) アドレス一致を優先、(2) ダメなら名前ヒントでフォールバック。
+    find_device_by_address より起動直後のWinRTアドレス解決遅延に強い。
+    """
+    target_addr = (address or "").upper()
+    found: "BLEDevice | None" = None
+
+    def detection_callback(device: BLEDevice, adv: AdvertisementData) -> None:
+        nonlocal found
+        if found is not None:
+            return
+        addr = (device.address or "").upper()
+        name = device.name or ""
+        local_name = adv.local_name or ""
+        if target_addr and addr == target_addr:
+            found = device
+            return
+        # フォールバック: アドレス解決が不安定なときの保険
+        if _NAME_HINT and (_NAME_HINT in name or _NAME_HINT in local_name):
+            found = device
+
+    scanner = BleakScanner(detection_callback=detection_callback)
+    try:
+        await scanner.start()
+        end = asyncio.get_running_loop().time() + timeout
+        while running_check() and asyncio.get_running_loop().time() < end:
+            if found is not None:
+                return found
+            await asyncio.sleep(0.1)
+    finally:
+        try:
+            await scanner.stop()
+        except Exception:
+            pass
+
+    return found
 
 
 class _PavlokBLE:
@@ -46,6 +113,7 @@ class _PavlokBLE:
         self._keepalive_task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None  # BLEDevice から設定
         self._reconnecting: bool = False  # connect() 実行中フラグ
+        self._ever_connected: bool = False  # 初回接続前のウォームアップ制御
         self.on_connection_changed: Callable[[bool], None] | None = None
 
     def _fire_connection_changed(self, connected: bool) -> None:
@@ -66,41 +134,58 @@ class _PavlokBLE:
     async def connect(self) -> bool:
         self._reconnecting = True
         try:
-            if self._client is not None:
-                try:
-                    await self._client.disconnect()
-                except Exception:
-                    pass
-                self._client = None
+            # 既存クライアントを確実にクリーンアップ（WinRT側にゴミが残るのを避ける）
+            had_client = self._client is not None
+            await self._cleanup_client()
+            if had_client:
                 # 前セッションの BT スタック解放を待つ
                 await asyncio.sleep(2.0)
 
             try:
-                # Windows の WinRT バックエンドは MAC 直指定で "Device not found" になりやすいため
-                # 先にスキャンしてデバイスを発見してから接続する
+                # 初回接続時: Win起動直後はBLEスタックが不安定
+                if not self._ever_connected:
+                    logger.debug("BLEスタック待機（最大30秒）...")
+                    await _wait_ble_stack_ready(lambda: not self._should_stop)
+
+                # コールバック型スキャン: find_device_by_address より起動直後のWinRTアドレス解決遅延に強い
                 scan_timeout = min(self._connect_timeout * 0.6, 20.0)
                 logger.info(f"BLE scanning for {self._mac} (timeout={scan_timeout:.0f}s)...")
-                device = await BleakScanner.find_device_by_address(self._mac, timeout=scan_timeout)
+                device = await _find_device_robust(
+                    self._mac, scan_timeout, lambda: not self._should_stop
+                )
                 if device is None:
                     logger.error(f"BLE scan: device not found: {self._mac}")
                     return False
 
                 logger.info(f"BLE device found: {device.name}, connecting...")
                 # スキャン直後は即接続せず少し待機（Pavlok 側の準備を待つ）
-                await asyncio.sleep(1.0)
-                self._client = BleakClient(
-                    device,
-                    timeout=self._connect_timeout,
-                    disconnected_callback=self._on_disconnected,
-                )
-                await self._client.connect(dangerous_use_bleak_cache=False)
+                await asyncio.sleep(0.5)
+
+                # winrt={"use_cached_services": False}: GATTキャッシュ起因の問題を防ぐ
+                try:
+                    self._client = BleakClient(
+                        device,
+                        timeout=self._connect_timeout,
+                        disconnected_callback=self._on_disconnected,
+                        winrt={"use_cached_services": False},
+                    )
+                except TypeError:
+                    self._client = BleakClient(
+                        device,
+                        timeout=self._connect_timeout,
+                        disconnected_callback=self._on_disconnected,
+                    )
+
+                await self._client.connect()
                 await asyncio.sleep(_CONNECT_SETTLE_DELAY)
 
                 if not self._client.is_connected:
                     logger.error("BLE connect: client reported disconnected after settle")
+                    await self._cleanup_client()
                     return False
 
                 logger.info(f"BLE connected: {self._mac}")
+                self._ever_connected = True
 
                 try:
                     await self._client.write_gatt_char(self._C_API_UUID, bytes([87, 84]), response=True)
@@ -111,11 +196,22 @@ class _PavlokBLE:
 
             except (BleakError, asyncio.TimeoutError, Exception) as e:
                 logger.error(f"BLE connect failed: [{type(e).__name__}] {e!r}")
-                self._client = None
+                await self._cleanup_client()
                 return False
 
         finally:
             self._reconnecting = False
+
+    async def _cleanup_client(self) -> None:
+        """BleakClient を確実に後始末する。WinRT側に中途半端な接続状態が残るのを防ぐ。"""
+        client = self._client
+        if client is None:
+            return
+        self._client = None
+        try:
+            await client.disconnect()
+        except Exception as e:
+            logger.debug(f"BLE cleanup disconnect (ignored): {e}")
 
     def _on_disconnected(self, client: BleakClient) -> None:
         """BLE 切断検知コールバック（WinRT スレッドから呼ばれる）。
@@ -156,13 +252,7 @@ class _PavlokBLE:
         self._monitor_task = None
         self._keepalive_task = None
 
-        if self._client is not None:
-            try:
-                await self._client.disconnect()
-            except Exception as e:
-                logger.debug(f"BLE disconnect error (ignored): {e}")
-            self._client = None
-
+        await self._cleanup_client()
         logger.info("BLE disconnected")
 
     # ------------------------------------------------------------------ #
